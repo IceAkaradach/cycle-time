@@ -2696,10 +2696,6 @@
             let nextIndex = 0;
             if (currentIdx !== -1) {
                 nextIndex = (currentIdx + 1) % state.uniqueSteps.length;
-                // ถ้าขั้นตอนถัดไปวนกลับมาที่ตัวแรกสุด (index 0) แปลว่าเริ่มชิ้นงานรอบใหม่!
-                if (nextIndex === 0) {
-                    autoSequence.currentCycleRound++;
-                }
             }
 
             autoSequence.currentIndex = nextIndex;
@@ -3107,23 +3103,14 @@
             let computedRound = 1;
             let lastStepIdx = -1;
             state.recordedCycles.forEach((c, idx) => {
-                // หาก c มีการกำหนด cycleRound มาแล้วอย่างถูกต้อง (เช่น มาจาก AI Auto-Tracking หรือการแก้ไขเฉพาะ) ให้คงค่าเดิมไว้
-                if (c.cycleRound !== undefined && c.cycleRound !== null && typeof c.cycleRound === 'number' && c.cycleRound > 0) {
-                    computedRound = Math.max(computedRound, c.cycleRound);
-                    const currentStepIdx = state.uniqueSteps.indexOf(c.step);
-                    if (currentStepIdx !== -1) {
-                        lastStepIdx = currentStepIdx;
-                    }
-                } else {
-                    const currentStepIdx = state.uniqueSteps.indexOf(c.step);
-                    // ถ้ารอบนี้มี index ในขั้นตอนน้อยกว่าหรือเท่ากับขั้นตอนก่อนหน้า แสดงว่าเริ่มวนรอบผลิตใหม่
-                    if (idx > 0 && currentStepIdx !== -1 && lastStepIdx !== -1 && currentStepIdx <= lastStepIdx) {
-                        computedRound++;
-                    }
-                    c.cycleRound = computedRound;
-                    if (currentStepIdx !== -1) {
-                        lastStepIdx = currentStepIdx;
-                    }
+                const currentStepIdx = state.uniqueSteps.indexOf(c.step);
+                // ถ้ารายการนี้มีลำดับขั้นตอนน้อยกว่าหรือเท่ากับขั้นตอนก่อนหน้า แสดงว่าวนจบรอบเดิมและเริ่มรอบใหม่
+                if (idx > 0 && currentStepIdx !== -1 && lastStepIdx !== -1 && currentStepIdx <= lastStepIdx) {
+                    computedRound++;
+                }
+                c.cycleRound = computedRound;
+                if (currentStepIdx !== -1) {
+                    lastStepIdx = currentStepIdx;
                 }
             });
 
@@ -3131,7 +3118,7 @@
             if (state.recordedCycles.length > 0) {
                 const lastCycle = state.recordedCycles[state.recordedCycles.length - 1];
                 const lastIdx = state.uniqueSteps.indexOf(lastCycle.step);
-                if (lastIdx === state.uniqueSteps.length - 1) {
+                if (lastIdx !== -1 && lastIdx === state.uniqueSteps.length - 1) {
                     autoSequence.currentCycleRound = (lastCycle.cycleRound || 1) + 1;
                 } else {
                     autoSequence.currentCycleRound = lastCycle.cycleRound || 1;
@@ -3141,7 +3128,7 @@
             }
         }
 
-        // ฟังก์ชันสร้างเมทริกซ์ 2 มิติ (ขั้นตอน x รอบการผลิต) โดยอิงตาม cycleRound จริง
+        // ฟังก์ชันสร้างเมทริกซ์ 2 มิติ (ขั้นตอน x ลำดับคอลัมน์การทดสอบ 1..10) เรียงต่อเนื่องกันเสมอไม่มีเว้นช่องว่าง
         function buildCycleRoundMatrix() {
             updateAllCycleRounds();
 
@@ -3153,15 +3140,18 @@
                 }
             });
 
-            // คำนวณรอบสูงสุดที่มีการบันทึก (จำกัดที่ 10 รอบตามตารางมาตรฐาน)
-            let maxRound = 1;
-            state.recordedCycles.forEach(c => {
-                const r = c.cycleRound || 1;
-                if (r > maxRound) maxRound = r;
-            });
-            maxRound = Math.min(10, Math.max(1, maxRound));
+            // ค้นหารอบที่มีข้อมูลจริงทั้งหมด เรียงลำดับจากน้อยไปมาก
+            const distinctRounds = [...new Set(state.recordedCycles.map(c => c.cycleRound || 1))].sort((a, b) => a - b);
 
-            // สร้าง Matrix: stepMatrix[step][roundNum] = duration
+            // แมปแต่ละรอบให้เป็นลำดับคอลัมน์ 1, 2, 3... ติดกันเสมอ ป้องกันการเว้นช่องว่าง
+            const roundToColMap = {};
+            distinctRounds.forEach((r, idx) => {
+                roundToColMap[r] = idx + 1;
+            });
+
+            const maxRound = Math.min(10, Math.max(1, distinctRounds.length));
+
+            // สร้าง Matrix: stepMatrix[step][colNum] = duration (colNum 1 ถึง 10)
             const stepMatrix = {};
             orderedSteps.forEach(s => {
                 stepMatrix[s] = {};
@@ -3169,13 +3159,14 @@
 
             state.recordedCycles.forEach(c => {
                 const r = c.cycleRound || 1;
-                if (r <= 10 && stepMatrix[c.step]) {
+                const colNum = roundToColMap[r] || r;
+                if (colNum <= 10 && stepMatrix[c.step]) {
                     // หากขั้นตอนเดียวกันถูกบันทึกซ้ำในรอบเดิม ให้บวกเวลารวมเข้าด้วยกัน
-                    stepMatrix[c.step][r] = (stepMatrix[c.step][r] || 0) + c.duration;
+                    stepMatrix[c.step][colNum] = (stepMatrix[c.step][colNum] || 0) + c.duration;
                 }
             });
 
-            return { orderedSteps, maxRound, stepMatrix };
+            return { orderedSteps, maxRound, stepMatrix, distinctRounds, roundToColMap };
         }
 
         function renderCycleList() {

@@ -91,6 +91,24 @@ class handler(BaseHTTPRequestHandler):
             model_val = req.get('model', 'RG21')
             steps = req.get('steps', [])
 
+            # Automatically compact runs if columns were skipped (ensure non-empty columns are packed sequentially 1, 2, 3...)
+            active_cols = []
+            for col_idx in range(10):
+                has_val = any(s.get('runs', [])[col_idx] is not None for s in steps if len(s.get('runs', [])) > col_idx)
+                if has_val:
+                    active_cols.append(col_idx)
+
+            if active_cols and active_cols != list(range(len(active_cols))):
+                for s in steps:
+                    orig_runs = s.get('runs', [])
+                    new_runs = []
+                    for col_idx in active_cols:
+                        val = orig_runs[col_idx] if col_idx < len(orig_runs) else None
+                        new_runs.append(val)
+                    while len(new_runs) < 10:
+                        new_runs.append(None)
+                    s['runs'] = new_runs
+
             parts = date_val.split('-')
             short_date = f"{parts[2]}/{parts[1]}/{parts[0][2:]}" if len(parts) == 3 else date_val
 
