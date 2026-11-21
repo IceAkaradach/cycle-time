@@ -37,3 +37,4 @@ Time.xlsx.bak
 
 # macOS App Bundles
 *.app/
+.vercel
