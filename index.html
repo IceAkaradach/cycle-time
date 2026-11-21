@@ -3868,6 +3868,8 @@
                                                 validDurs.push(dVal);
                                                 setDomCell(doc1, colLetters[r - 1] + timeRow, dVal.toFixed(2), false);
                                                 colTotals[r - 1] += dVal;
+                                            } else {
+                                                setDomCell(doc1, colLetters[r - 1] + timeRow, '', true);
                                             }
                                         }
 
@@ -3877,10 +3879,10 @@
                                             const flucVal = maxVal - minVal;
                                             const avgVal = validDurs.reduce((a, b) => a + b, 0) / validDurs.length;
 
-                                            setDomCell(doc1, 'M' + timeRow, minVal.toFixed(2), false);
-                                            setDomCell(doc1, 'N' + timeRow, maxVal.toFixed(2), false);
-                                            setDomCell(doc1, 'O' + timeRow, flucVal.toFixed(2), false);
-                                            setDomCell(doc1, 'P' + timeRow, avgVal.toFixed(2), false);
+                                            setDomCell(doc1, 'M' + timeRow, minVal.toFixed(2), false, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MIN(C${timeRow}:L${timeRow}))`);
+                                            setDomCell(doc1, 'N' + timeRow, maxVal.toFixed(2), false, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MAX(C${timeRow}:L${timeRow}))`);
+                                            setDomCell(doc1, 'O' + timeRow, flucVal.toFixed(2), false, `IF(N${timeRow}="","",N${timeRow}-M${timeRow})`);
+                                            setDomCell(doc1, 'P' + timeRow, avgVal.toFixed(2), false, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",AVERAGE(C${timeRow}:L${timeRow}))`);
 
                                             totalMinSum += minVal;
                                             totalMaxSum += maxVal;
@@ -3913,16 +3915,53 @@
                                     }
                                 });
 
+                                // Clear all unused step rows so they never display 0.00
+                                for (let uRow = 5 + orderedSteps.length; uRow <= 33; uRow++) {
+                                    setDomCell(doc1, 'A' + uRow, '', true);
+                                    setDomCell(doc1, 'B' + uRow, '', true);
+                                    for (let cL of colLetters) {
+                                        setDomCell(doc1, cL + uRow, '', true);
+                                    }
+                                    setDomCell(doc1, 'M' + uRow, '', true, `IF(COUNT(C${uRow}:L${uRow})=0,"",MIN(C${uRow}:L${uRow}))`);
+                                    setDomCell(doc1, 'N' + uRow, '', true, `IF(COUNT(C${uRow}:L${uRow})=0,"",MAX(C${uRow}:L${uRow}))`);
+                                    setDomCell(doc1, 'O' + uRow, '', true, `IF(N${uRow}="","",N${uRow}-M${uRow})`);
+                                    setDomCell(doc1, 'P' + uRow, '', true, `IF(COUNT(C${uRow}:L${uRow})=0,"",AVERAGE(C${uRow}:L${uRow}))`);
+                                }
+
+                                // Clear unused rows on Sheet 2 (SWCT)
+                                for (let uSIdx = orderedSteps.length; uSIdx < 26; uSIdx++) {
+                                    const uSwctRow = 7 + uSIdx * 2;
+                                    setDomCell(doc2, 'C' + uSwctRow, '', true);
+                                    setDomCell(doc2, 'G' + uSwctRow, '', true);
+                                    setDomCell(doc2, 'EE' + uSwctRow, '', true);
+                                }
+
                                 // Total row on Sheet 1
+                                const activeColTotals = colTotals.filter(tot => tot > 0);
                                 for (let cIdx = 0; cIdx < 10; cIdx++) {
+                                    const colC = colLetters[cIdx];
                                     if (colTotals[cIdx] > 0) {
-                                        setDomCell(doc1, colLetters[cIdx] + '34', colTotals[cIdx].toFixed(2), false);
+                                        setDomCell(doc1, colC + '34', colTotals[cIdx].toFixed(2), false, `IF(COUNT(${colC}5:${colC}33)=0,"",SUM(${colC}5:${colC}33))`);
+                                    } else {
+                                        setDomCell(doc1, colC + '34', '', true, `IF(COUNT(${colC}5:${colC}33)=0,"",SUM(${colC}5:${colC}33))`);
                                     }
                                 }
-                                setDomCell(doc1, 'M34', totalMinSum.toFixed(2), false);
-                                setDomCell(doc1, 'N34', totalMaxSum.toFixed(2), false);
-                                setDomCell(doc1, 'O34', (totalMaxSum - totalMinSum).toFixed(2), false);
-                                setDomCell(doc1, 'P34', totalAvgSum.toFixed(2), false);
+
+                                if (activeColTotals.length > 0) {
+                                    const minTotal = Math.min(...activeColTotals);
+                                    const maxTotal = Math.max(...activeColTotals);
+                                    const flucTotal = maxTotal - minTotal;
+                                    const avgTotal = activeColTotals.reduce((a, b) => a + b, 0) / activeColTotals.length;
+                                    setDomCell(doc1, 'M34', minTotal.toFixed(2), false, 'IF(COUNT(C34:L34)=0,"",MIN(C34:L34))');
+                                    setDomCell(doc1, 'N34', maxTotal.toFixed(2), false, 'IF(COUNT(C34:L34)=0,"",MAX(C34:L34))');
+                                    setDomCell(doc1, 'O34', flucTotal.toFixed(2), false, 'IF(N34="","",N34-M34)');
+                                    setDomCell(doc1, 'P34', avgTotal.toFixed(2), false, 'IF(COUNT(C34:L34)=0,"",AVERAGE(C34:L34))');
+                                } else {
+                                    setDomCell(doc1, 'M34', '', true, 'IF(COUNT(C34:L34)=0,"",MIN(C34:L34))');
+                                    setDomCell(doc1, 'N34', '', true, 'IF(COUNT(C34:L34)=0,"",MAX(C34:L34))');
+                                    setDomCell(doc1, 'O34', '', true, 'IF(N34="","",N34-M34)');
+                                    setDomCell(doc1, 'P34', '', true, 'IF(COUNT(C34:L34)=0,"",AVERAGE(C34:L34))');
+                                }
 
                                 // SWCT Totals
                                 const totalSwct = cumTime;

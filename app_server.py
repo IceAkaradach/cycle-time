@@ -184,6 +184,8 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                                 r_num = float(r_val)
                                 set_cell_dom(tree1, f'{col_letters[r_idx]}{time_row}', f'{r_num:.2f}', is_str=False)
                                 col_totals[r_idx] += r_num
+                            else:
+                                set_cell_dom(tree1, f'{col_letters[r_idx]}{time_row}', '', is_str=True)
 
                         valid_runs = [float(r) for r in runs if r is not None]
                         if valid_runs:
@@ -222,10 +224,10 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
 
                             swct_formula = f"IF('TIME MEASUREMENT'!{target_col}{time_row}=\"\",\"\",'TIME MEASUREMENT'!{target_col}{time_row})"
 
-                            set_cell_dom(tree1, f'M{time_row}', f'{min_val:.2f}', is_str=False)
-                            set_cell_dom(tree1, f'N{time_row}', f'{max_val:.2f}', is_str=False)
-                            set_cell_dom(tree1, f'O{time_row}', f'{fluc_val:.2f}', is_str=False)
-                            set_cell_dom(tree1, f'P{time_row}', f'{avg_val:.2f}', is_str=False)
+                            set_cell_dom(tree1, f'M{time_row}', f'{min_val:.2f}', is_str=False, new_formula=f'IF(COUNT(C{time_row}:L{time_row})=0,"",MIN(C{time_row}:L{time_row}))')
+                            set_cell_dom(tree1, f'N{time_row}', f'{max_val:.2f}', is_str=False, new_formula=f'IF(COUNT(C{time_row}:L{time_row})=0,"",MAX(C{time_row}:L{time_row}))')
+                            set_cell_dom(tree1, f'O{time_row}', f'{fluc_val:.2f}', is_str=False, new_formula=f'IF(N{time_row}="","",N{time_row}-M{time_row})')
+                            set_cell_dom(tree1, f'P{time_row}', f'{avg_val:.2f}', is_str=False, new_formula=f'IF(COUNT(C{time_row}:L{time_row})=0,"",AVERAGE(C{time_row}:L{time_row}))')
 
                             total_min_sum += min_val
                             total_max_sum += max_val
@@ -242,14 +244,47 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                             set_cell_dom(tree2, f'EE{swct_row}', f'{cum_time:.2f}', is_str=False)
                             cum_time += plot_val
 
+                # Clear all unused step rows so they never display 0.00
+                for u_row in range(5 + len(steps), 34):
+                    set_cell_dom(tree1, f'A{u_row}', '', is_str=True)
+                    set_cell_dom(tree1, f'B{u_row}', '', is_str=True)
+                    for col_letter in col_letters:
+                        set_cell_dom(tree1, f'{col_letter}{u_row}', '', is_str=True)
+                    set_cell_dom(tree1, f'M{u_row}', '', is_str=True, new_formula=f'IF(COUNT(C{u_row}:L{u_row})=0,"",MIN(C{u_row}:L{u_row}))')
+                    set_cell_dom(tree1, f'N{u_row}', '', is_str=True, new_formula=f'IF(COUNT(C{u_row}:L{u_row})=0,"",MAX(C{u_row}:L{u_row}))')
+                    set_cell_dom(tree1, f'O{u_row}', '', is_str=True, new_formula=f'IF(N{u_row}="","",N{u_row}-M{u_row})')
+                    set_cell_dom(tree1, f'P{u_row}', '', is_str=True, new_formula=f'IF(COUNT(C{u_row}:L{u_row})=0,"",AVERAGE(C{u_row}:L{u_row}))')
+
+                # Clear unused rows in Sheet 2 (SWCT)
+                for u_s_idx in range(len(steps), 26):
+                    u_swct_row = 7 + u_s_idx * 2
+                    set_cell_dom(tree2, f'C{u_swct_row}', '', is_str=True)
+                    set_cell_dom(tree2, f'G{u_swct_row}', '', is_str=True)
+                    set_cell_dom(tree2, f'EE{u_swct_row}', '', is_str=True)
+
                 # Sheet 1 row 34 TOTAL
+                active_col_totals = [tot for tot in col_totals if tot > 0]
                 for r_idx in range(10):
+                    col_c = col_letters[r_idx]
                     if col_totals[r_idx] > 0:
-                        set_cell_dom(tree1, f'{col_letters[r_idx]}34', f'{col_totals[r_idx]:.2f}', is_str=False)
-                set_cell_dom(tree1, 'M34', f'{total_min_sum:.2f}', is_str=False)
-                set_cell_dom(tree1, 'N34', f'{total_max_sum:.2f}', is_str=False)
-                set_cell_dom(tree1, 'O34', f'{(total_max_sum - total_min_sum):.2f}', is_str=False)
-                set_cell_dom(tree1, 'P34', f'{total_avg_sum:.2f}', is_str=False)
+                        set_cell_dom(tree1, f'{col_c}34', f'{col_totals[r_idx]:.2f}', is_str=False, new_formula=f'IF(COUNT({col_c}5:{col_c}33)=0,"",SUM({col_c}5:{col_c}33))')
+                    else:
+                        set_cell_dom(tree1, f'{col_c}34', '', is_str=True, new_formula=f'IF(COUNT({col_c}5:{col_c}33)=0,"",SUM({col_c}5:{col_c}33))')
+
+                if active_col_totals:
+                    min_total = min(active_col_totals)
+                    max_total = max(active_col_totals)
+                    fluc_total = max_total - min_total
+                    avg_total = sum(active_col_totals) / len(active_col_totals)
+                    set_cell_dom(tree1, 'M34', f'{min_total:.2f}', is_str=False, new_formula='IF(COUNT(C34:L34)=0,"",MIN(C34:L34))')
+                    set_cell_dom(tree1, 'N34', f'{max_total:.2f}', is_str=False, new_formula='IF(COUNT(C34:L34)=0,"",MAX(C34:L34))')
+                    set_cell_dom(tree1, 'O34', f'{fluc_total:.2f}', is_str=False, new_formula='IF(N34="","",N34-M34)')
+                    set_cell_dom(tree1, 'P34', f'{avg_total:.2f}', is_str=False, new_formula='IF(COUNT(C34:L34)=0,"",AVERAGE(C34:L34))')
+                else:
+                    set_cell_dom(tree1, 'M34', '', is_str=True, new_formula='IF(COUNT(C34:L34)=0,"",MIN(C34:L34))')
+                    set_cell_dom(tree1, 'N34', '', is_str=True, new_formula='IF(COUNT(C34:L34)=0,"",MAX(C34:L34))')
+                    set_cell_dom(tree1, 'O34', '', is_str=True, new_formula='IF(N34="","",N34-M34)')
+                    set_cell_dom(tree1, 'P34', '', is_str=True, new_formula='IF(COUNT(C34:L34)=0,"",AVERAGE(C34:L34))')
 
                 total_swct = cum_time
                 set_cell_dom(tree2, 'BD2', f'{total_swct:.2f}', is_str=False)
