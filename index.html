@@ -1207,6 +1207,7 @@
                     <li>⌨️ <strong>แป้นตัว R</strong> : ย้อนกลับไปจุดเริ่มต้นวิดีโอ (00:00)</li>
                     <li>⌨️ <strong>แป้นตัว Q</strong> : กดสิ้นสุดการทำวิดีโอและเข้าสู่หน้าดาวน์โหลดไฟล์ Excel</li>
                     <li>⚡ <strong>แป้น [ หรือ -</strong> : ลดความเร็ววิดีโอ | <strong>แป้น ] หรือ +</strong> : เพิ่มความเร็ววิดีโอ (ปรับได้ถึง 5.0x)</li>
+                    <li>⏩ <strong>ลูกศร ซ้าย / ขวา (← / →)</strong> : ก้าวทีละเฟรม (0.05s) | <strong>Shift + (← / →)</strong> : ก้าวทีละ 1 วินาที</li>
                     <li>🎯 <strong>โหมดรอบแม่แบบ (Template Master)</strong> : บันทึกขั้นตอนรอบแรกด้วยมือ จากนั้นกดล็อคแม่แบบเพื่อให้ระบบจับเวลาและเปลี่ยนขั้นตอนรอบต่อไปอัตโนมัติ</li>
                 </ul>
             </div>
@@ -1635,7 +1636,11 @@
                 // คัดกรองรอบที่ 1 ที่ผู้ใช้จับไว้ (ถ้ามี)
                 const firstRoundCycles = state.recordedCycles.filter(c => (c.cycleRound || 1) === 1);
 
-                const response = await fetch('http://localhost:8000/api/analyze_cycles', {
+                const apiUrl = window.location.protocol.startsWith('http')
+                    ? '/api/analyze_cycles'
+                    : 'http://localhost:8000/api/analyze_cycles';
+
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2623,14 +2628,23 @@
             let computedRound = 1;
             let lastStepIdx = -1;
             state.recordedCycles.forEach((c, idx) => {
-                const currentStepIdx = state.uniqueSteps.indexOf(c.step);
-                // ถ้ารอบนี้มี index ในขั้นตอนน้อยกว่าหรือเท่ากับขั้นตอนก่อนหน้า แสดงว่าเริ่มวนรอบผลิตใหม่
-                if (idx > 0 && currentStepIdx !== -1 && lastStepIdx !== -1 && currentStepIdx <= lastStepIdx) {
-                    computedRound++;
-                }
-                c.cycleRound = computedRound;
-                if (currentStepIdx !== -1) {
-                    lastStepIdx = currentStepIdx;
+                // หาก c มีการกำหนด cycleRound มาแล้วอย่างถูกต้อง (เช่น มาจาก AI Auto-Tracking หรือการแก้ไขเฉพาะ) ให้คงค่าเดิมไว้
+                if (c.cycleRound !== undefined && c.cycleRound !== null && typeof c.cycleRound === 'number' && c.cycleRound > 0) {
+                    computedRound = Math.max(computedRound, c.cycleRound);
+                    const currentStepIdx = state.uniqueSteps.indexOf(c.step);
+                    if (currentStepIdx !== -1) {
+                        lastStepIdx = currentStepIdx;
+                    }
+                } else {
+                    const currentStepIdx = state.uniqueSteps.indexOf(c.step);
+                    // ถ้ารอบนี้มี index ในขั้นตอนน้อยกว่าหรือเท่ากับขั้นตอนก่อนหน้า แสดงว่าเริ่มวนรอบผลิตใหม่
+                    if (idx > 0 && currentStepIdx !== -1 && lastStepIdx !== -1 && currentStepIdx <= lastStepIdx) {
+                        computedRound++;
+                    }
+                    c.cycleRound = computedRound;
+                    if (currentStepIdx !== -1) {
+                        lastStepIdx = currentStepIdx;
+                    }
                 }
             });
 
@@ -4024,6 +4038,20 @@
                 else if (e.key === ']' || e.key === '=' || e.key === '+') {
                     e.preventDefault();
                     stepPlaybackSpeed(1);
+                }
+
+                // 6. ลูกศร ซ้าย/ขวา -> เลื่อนวิดีโอทีละเฟรม (0.05s) หรือกด Shift ค้างเพื่อก้าวทีละ 1 วินาที
+                else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    if (!timeVideo.paused) timeVideo.pause();
+                    const step = e.shiftKey ? 1.0 : 0.05;
+                    timeVideo.currentTime = Math.max(0, timeVideo.currentTime - step);
+                }
+                else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (!timeVideo.paused) timeVideo.pause();
+                    const step = e.shiftKey ? 1.0 : 0.05;
+                    timeVideo.currentTime = Math.min(timeVideo.duration || 0, timeVideo.currentTime + step);
                 }
             }
         });

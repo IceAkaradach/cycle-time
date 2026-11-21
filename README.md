@@ -9,7 +9,13 @@
 1. **Video Player & Playback Control:**
    - โหลดวิดีโอจากเครื่อง (`.mp4`, `.mov`, ฯลฯ) ไม่จำกัดขนาด
    - ปรับความเร็ววิดีโอได้ตั้งแต่ `0.1x` ถึง `5.0x` เพื่อการจับเวลาที่แม่นยำระดับเฟรม
-   - Hotkeys รองรับการควบคุมด้วยคีย์บอร์ด (Spacebar เล่น/หยุด, ลูกศร ซ้าย/ขวา ก้าวทีละเฟรม/วินาที)
+   - Hotkeys รองรับการควบคุมด้วยคีย์บอร์ดอย่างรวดเร็ว:
+     - `Spacebar`: เริ่ม / บันทึกขั้นตอน (Start / Save Cycle)
+     - `P`: เล่น / หยุดวิดีโอชั่วคราว (Play / Pause)
+     - `ลูกศร ซ้าย / ขวา (← / →)`: ก้าวทีละเฟรม (0.05s) หรือ `Shift + (← / →)` สำหรับ 1 วินาที
+     - `[` / `]`: ปรับลด / เพิ่มความเร็วการเล่น (0.1x ถึง 5.0x)
+     - `R`: ย้อนกลับไปจุดเริ่มต้น (00:00)
+     - `Q`: บันทึกและเสร็จสิ้นเซสชัน เข้าสู่หน้า Export Excel
 
 2. **Cycle Time & Process Step Tracking:**
    - กำหนดขั้นตอนการทำงาน (Process Steps) พร้อมเลือกชื่อขั้นตอน / หมายเลขลำดับอัตโนมัติ
@@ -48,6 +54,7 @@
 # ติดตั้ง dependencies (หากต้องการใช้ backend python server)
 python3 -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
 
 # รัน Server
 python3 app_server.py
@@ -63,6 +70,7 @@ python3 app_server.py
 ├── time_template_b64.js         # Base64 Template สำหรับ Offline In-Browser Excel Export
 ├── Time.xlsx                    # ไฟล์แม่แบบมาตรฐาน SWCT (Excel Template)
 ├── app_server.py                # Local Python Server
+├── requirements.txt             # รายการ Python dependencies (OpenCV, NumPy)
 ├── Start Cycle Time.app         # แอปรันสำหรับ macOS (One-click launch)
 ├── Start_Cycle_Time.command     # สคริปต์รันสำหรับ macOS
 ├── api/

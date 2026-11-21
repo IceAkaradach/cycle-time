@@ -1,6 +1,6 @@
 {
   "name": "cycle-time",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Cycle Time Video Study & Standardized Work Combination Table (SWCT) Generator",
   "scripts": {

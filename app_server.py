@@ -113,7 +113,7 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                 if emp_val:
                     set_cell_dom(tree1, 'M2', emp_val, is_str=True)
                 if model_val:
-                    set_cell_dom(tree1, 'B3', model_name if 'model_name' in locals() else model_val, is_str=True)
+                    set_cell_dom(tree1, 'B3', model_val, is_str=True)
                     set_cell_dom(tree2, 'E1', f"MODEL : {model_val}", is_str=True)
 
                 swct_plot_mode = req.get('swctPlotMode', 'min')
@@ -407,7 +407,7 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                 # ตรวจสอบไฟล์วิดีโอในโฟลเดอร์
                 target_video = None
                 for fname in os.listdir('.'):
-                    if fname.endswith(('.mov', '.mp4')) and (video_name in fname or fname in video_name):
+                    if fname.endswith(('.mov', '.mp4')) and video_name and (video_name in fname or fname in video_name):
                         target_video = fname
                         break
                 
@@ -552,7 +552,8 @@ def run_motion_tracking(video_file, first_round):
     return generated_cycles
 
 if __name__ == '__main__':
-    print(f"🚀 เริ่มรัน Cycle Time Server บน http://localhost:{PORT}")
-    print(f"👉 เปิดเบราว์เซอร์ไปที่: http://localhost:{PORT}/index.html")
-    server = socketserver.TCPServer(("", PORT), CycleTimeHandler)
+    HOST = os.environ.get("HOST", "127.0.0.1")
+    print(f"🚀 เริ่มรัน Cycle Time Server บน http://{HOST}:{PORT}")
+    print(f"👉 เปิดเบราว์เซอร์ไปที่: http://{HOST}:{PORT}/index.html")
+    server = socketserver.TCPServer((HOST, PORT), CycleTimeHandler)
     server.serve_forever()

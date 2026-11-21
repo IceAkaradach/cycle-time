@@ -3,6 +3,8 @@ import json
 import zipfile
 import io
 import os
+import re
+import math
 import xml.etree.ElementTree as ET
 
 class handler(BaseHTTPRequestHandler):
@@ -17,11 +19,6 @@ class handler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         try:
-            import zipfile
-            import io
-            import re
-            import xml.etree.ElementTree as ET
-
             req = json.loads(post_data.decode('utf-8'))
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             template_path = os.path.join(base_dir, "Time.xlsx")
@@ -106,7 +103,7 @@ class handler(BaseHTTPRequestHandler):
             if emp_val:
                 set_cell_dom(tree1, 'M2', emp_val, is_str=True)
             if model_val:
-                set_cell_dom(tree1, 'B3', model_name if 'model_name' in locals() else model_val, is_str=True)
+                set_cell_dom(tree1, 'B3', model_val, is_str=True)
                 set_cell_dom(tree2, 'E1', f"MODEL : {model_val}", is_str=True)
 
             swct_plot_mode = req.get('swctPlotMode', 'min')
