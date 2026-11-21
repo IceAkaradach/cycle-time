@@ -1181,15 +1181,16 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 20px;
-            padding: 4px 12px;
+            padding: 4px 10px;
             font-size: 12px;
             font-weight: 600;
             color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.2s;
+            cursor: grab;
+            transition: transform 0.15s, border-color 0.15s, background-color 0.15s, opacity 0.15s;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
+            user-select: none;
         }
 
         .seq-chip:hover {
@@ -1197,18 +1198,53 @@
             color: var(--text-light);
         }
 
+        .seq-chip:active {
+            cursor: grabbing;
+        }
+
         .seq-chip.active-seq {
             background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
             border-color: #38bdf8;
             color: white;
             box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
-            transform: scale(1.05);
+            transform: scale(1.04);
         }
 
         .seq-chip.active-seq::before {
             content: "▶";
             font-size: 10px;
             color: #34d399;
+        }
+
+        .seq-chip.is-dragging {
+            opacity: 0.35;
+            border: 2px dashed #38bdf8 !important;
+            cursor: grabbing !important;
+            transform: scale(0.96);
+        }
+
+        .seq-chip.drag-over {
+            border-color: #38bdf8 !important;
+            background: rgba(56, 189, 248, 0.25) !important;
+            transform: scale(1.08);
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.6) !important;
+        }
+
+        .seq-drag-handle {
+            color: #94a3b8;
+            font-size: 13px;
+            cursor: grab;
+            padding: 0 2px;
+            display: inline-flex;
+            align-items: center;
+            transition: color 0.15s;
+            line-height: 1;
+            opacity: 0.7;
+        }
+
+        .seq-chip:hover .seq-drag-handle {
+            opacity: 1;
+            color: #38bdf8;
         }
 
     </style>
@@ -1421,7 +1457,7 @@
                                     <span>เปิดใช้งาน (เคาะ Spacebar แล้วสลับขั้นตอนถัดไปให้อัตโนมัติ)</span>
                                 </label>
                             </div>
-                            <span id="seqNotice" style="font-size:11px; color:#94a3b8;">กด <kbd style="background:#1e293b; padding:2px 5px; border-radius:4px; border:1px solid #475569; color:#f8fafc;">Spacebar</kbd> จะวนลูปไปขั้นตอนถัดไป</span>
+                            <span id="seqNotice" style="font-size:11px; color:#94a3b8;">กด <kbd style="background:#1e293b; padding:2px 5px; border-radius:4px; border:1px solid #475569; color:#f8fafc;">Spacebar</kbd> วนขั้นตอน | ⠿ ลากเพื่อสลับลำดับขั้นตอนได้</span>
                         </div>
                         <div class="sequence-chips-row" id="sequenceChipsRow">
                             <!-- Dynamic Sequence Chips populated here -->
@@ -2708,7 +2744,34 @@
             renderSequenceChips();
         }
 
-        // เรนเดอร์ชิปขั้นตอนในแถบ Auto Sequence
+        // สลับลำดับขั้นตอนในระบบ (ลากเรียงลำดับใหม่)
+        function reorderUniqueSteps(fromIndex, toIndex) {
+            if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= state.uniqueSteps.length || toIndex >= state.uniqueSteps.length) {
+                return;
+            }
+            const movedItem = state.uniqueSteps.splice(fromIndex, 1)[0];
+            state.uniqueSteps.splice(toIndex, 0, movedItem);
+
+            // ซิงค์ตำแหน่ง autoSequence.currentIndex ให้ตรงกับขั้นตอนปัจจุบัน
+            const currentIdx = state.uniqueSteps.indexOf(workStepName);
+            if (currentIdx !== -1) {
+                autoSequence.currentIndex = currentIdx;
+            } else if (state.uniqueSteps.length > 0) {
+                autoSequence.currentIndex = 0;
+            }
+
+            // ซิงค์ Dropdown, เมทริกซ์ Excel, แถบชิป และรายการประวัติ
+            updateStepSelectDropdown();
+            updateAllCycleRounds();
+            renderSequenceChips();
+            renderCycleList();
+            renderCycleMatrix();
+            if (typeof updateBatchActionBar === 'function') {
+                updateBatchActionBar();
+            }
+        }
+
+        // เรนเดอร์ชิปขั้นตอนในแถบ Auto Sequence (พร้อมรองรับการลากสลับลำดับ Drag & Drop)
         function renderSequenceChips() {
             const container = document.getElementById('sequenceChipsRow');
             if (!container) return;
@@ -2730,10 +2793,21 @@
                 const isActive = (step === workStepName);
                 const chip = document.createElement('div');
                 chip.className = `seq-chip ${isActive ? 'active-seq' : ''}`;
+                chip.setAttribute('draggable', 'true');
+                chip.dataset.stepIndex = idx;
+                chip.dataset.stepName = step;
+                chip.title = `ลากเพื่อสลับลำดับ | คลิกเพื่อเลือก "${step}"`;
+
+                // Drag handle (⠿)
+                const dragHandle = document.createElement('span');
+                dragHandle.className = 'seq-drag-handle';
+                dragHandle.innerHTML = '⠿';
+                dragHandle.title = 'คลิกลากเพื่อสลับลำดับขั้นตอน (Drag to reorder)';
+                chip.appendChild(dragHandle);
                 
                 const titleSpan = document.createElement('span');
                 titleSpan.textContent = `${idx + 1}. ${step}`;
-                titleSpan.onclick = () => setSequenceStep(step);
+                titleSpan.style.cursor = 'pointer';
                 chip.appendChild(titleSpan);
 
                 // ปุ่มแก้ไขชื่อขั้นตอน (✏️)
@@ -2741,6 +2815,7 @@
                 editNameBtn.innerHTML = "✏️";
                 editNameBtn.title = `แก้ไขชื่อขั้นตอน "${step}"`;
                 editNameBtn.style.cssText = "margin-left: 5px; font-size: 11px; cursor: pointer; opacity: 0.7; padding: 0 2px;";
+                editNameBtn.setAttribute('draggable', 'false');
                 editNameBtn.onmouseover = () => editNameBtn.style.opacity = "1";
                 editNameBtn.onmouseout = () => editNameBtn.style.opacity = "0.7";
                 editNameBtn.onclick = (e) => {
@@ -2754,6 +2829,7 @@
                 delBtn.innerHTML = "&times;";
                 delBtn.title = `ลบขั้นตอน "${step}" ออกจากระบบ`;
                 delBtn.style.cssText = "margin-left: 6px; font-weight: bold; cursor: pointer; opacity: 0.6; padding: 0 4px; border-radius: 4px;";
+                delBtn.setAttribute('draggable', 'false');
                 delBtn.onmouseover = () => delBtn.style.opacity = "1";
                 delBtn.onmouseout = () => delBtn.style.opacity = "0.6";
                 delBtn.onclick = (e) => {
@@ -2762,7 +2838,98 @@
                 };
                 chip.appendChild(delBtn);
 
-                chip.title = `คลิกเพื่อเลือก ${escapeHtml(step)} ทันที`;
+                // คลิกเลือกขั้นตอน (ยกเว้นกดปุ่มลบหรือแก้ไข)
+                chip.onclick = (e) => {
+                    if (e.target !== editNameBtn && e.target !== delBtn && !editNameBtn.contains(e.target) && !delBtn.contains(e.target)) {
+                        setSequenceStep(step);
+                    }
+                };
+
+                // HTML5 Drag & Drop
+                chip.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', String(idx));
+                    window._draggedStepIndex = idx;
+                    chip.classList.add('is-dragging');
+                });
+
+                chip.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    const fromIdx = window._draggedStepIndex !== undefined ? window._draggedStepIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
+                    if (fromIdx !== idx) {
+                        chip.classList.add('drag-over');
+                    }
+                });
+
+                chip.addEventListener('dragleave', () => {
+                    chip.classList.remove('drag-over');
+                });
+
+                chip.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    chip.classList.remove('drag-over');
+                    const fromIdx = window._draggedStepIndex !== undefined ? window._draggedStepIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
+                    if (!isNaN(fromIdx) && fromIdx !== idx) {
+                        reorderUniqueSteps(fromIdx, idx);
+                    }
+                });
+
+                chip.addEventListener('dragend', () => {
+                    chip.classList.remove('is-dragging');
+                    delete window._draggedStepIndex;
+                    document.querySelectorAll('.seq-chip').forEach(c => c.classList.remove('drag-over'));
+                });
+
+                // Touch Drag & Drop (สำหรับหน้าจอสัมผัส / iPad / Tablet)
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchMoved = false;
+
+                chip.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    touchMoved = false;
+                    window._touchDraggedStepIndex = idx;
+                }, { passive: true });
+
+                chip.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    const dx = Math.abs(touch.clientX - touchStartX);
+                    const dy = Math.abs(touch.clientY - touchStartY);
+                    if (dx > 8 || dy > 8) {
+                        touchMoved = true;
+                        chip.classList.add('is-dragging');
+                        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+                        const overChip = targetEl ? targetEl.closest('.seq-chip') : null;
+                        document.querySelectorAll('.seq-chip').forEach(c => {
+                            if (c === overChip && c !== chip) {
+                                c.classList.add('drag-over');
+                            } else {
+                                c.classList.remove('drag-over');
+                            }
+                        });
+                    }
+                }, { passive: true });
+
+                chip.addEventListener('touchend', (e) => {
+                    chip.classList.remove('is-dragging');
+                    if (touchMoved && window._touchDraggedStepIndex !== undefined) {
+                        const touch = e.changedTouches[0];
+                        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+                        const overChip = targetEl ? targetEl.closest('.seq-chip') : null;
+                        if (overChip && overChip.dataset.stepIndex !== undefined) {
+                            const toIdx = parseInt(overChip.dataset.stepIndex, 10);
+                            if (!isNaN(toIdx) && toIdx !== window._touchDraggedStepIndex) {
+                                reorderUniqueSteps(window._touchDraggedStepIndex, toIdx);
+                            }
+                        }
+                    }
+                    delete window._touchDraggedStepIndex;
+                    document.querySelectorAll('.seq-chip').forEach(c => c.classList.remove('drag-over'));
+                });
+
                 container.appendChild(chip);
 
                 // Add arrow indicator between chips except the last one
