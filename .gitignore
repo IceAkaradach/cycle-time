@@ -34,6 +34,7 @@ Thumbs.db
 test_*.xlsx
 test_*.py
 Time.xlsx.bak
+~$*.xlsx
 
 # macOS App Bundles
 *.app/

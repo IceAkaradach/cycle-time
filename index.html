@@ -3911,7 +3911,7 @@
                         a.click();
                         document.body.removeChild(a);
                         URL.revokeObjectURL(downloadUrl);
-                        alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ 100%!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\n- สเกลแกนเวลากราฟ: 0 ถึง ${maxAxis} วินาที (แบ่งช่องละ ${majorUnit}s)\nรูปแบบตรงตามแม่แบบ Time.xlsx เป๊ะทุกประการ พร้อมกราฟ SWCT แสดงแท่งกราฟชัดเจนครับ`);
+                        alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ 100%!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\n- สเกลแกนเวลากราฟ: 0 ถึง ${maxAxis} วินาที (แบ่งช่องละ ${majorUnit}s)\nรูปแบบตรงตามแม่แบบ Time.xlsx เป๊ะทุกประการ ครบทั้ง 4 ชีท พร้อมกราฟ SWCT และแผนภาพ YAMAZUMI CHART ครับ`);
                         templateLoaded = true;
                         return;
                     }
@@ -4242,6 +4242,137 @@
 
                                 zip.file('xl/worksheets/sheet3.xml', sheet3Xml);
 
+                                // Populate Sheet 4: YAMA & chart2.xml (YAMAZUMI Chart)
+                                if (zip.file('xl/worksheets/sheet4.xml')) {
+                                    const s4Str = await zip.file('xl/worksheets/sheet4.xml').async('string');
+                                    const doc4 = parser.parseFromString(s4Str, 'application/xml');
+
+                                    setDomCell(doc4, 'J2', procName, true);
+                                    setDomCell(doc4, 'P2', empName, true);
+                                    setDomCell(doc4, 'V2', shortDateStr, true);
+                                    setDomCell(doc4, 'H2', modelName, true);
+
+                                    const stepPlotVals = [];
+                                    orderedSteps.forEach((step, sIdx) => {
+                                        const yRow = 5 + sIdx;
+                                        const swctRow = 7 + sIdx * 2;
+                                        const plotVal = stepValues[step] !== undefined ? stepValues[step] : 0;
+                                        stepPlotVals.push(plotVal);
+
+                                        if (yRow <= 21) {
+                                            setDomCell(doc4, 'B' + yRow, sIdx + 1, false);
+                                            setDomCell(doc4, 'C' + yRow, step, true, `IF(SWCT!C${swctRow}="","",SWCT!C${swctRow})`);
+                                            setDomCell(doc4, 'H' + yRow, plotVal.toFixed(2), false, `IF(SWCT!G${swctRow}="","",SWCT!G${swctRow})`);
+                                        }
+                                    });
+
+                                    for (let uRow = 5 + orderedSteps.length; uRow <= 21; uRow++) {
+                                        setDomCell(doc4, 'B' + uRow, '', true);
+                                        setDomCell(doc4, 'C' + uRow, '', true);
+                                        setDomCell(doc4, 'H' + uRow, '', true);
+                                    }
+
+                                    if (activeColTotals.length > 0) {
+                                        const minTotal = Math.min(...activeColTotals);
+                                        const maxTotal = Math.max(...activeColTotals);
+                                        const flucTotal = maxTotal - minTotal;
+                                        const avgTotal = activeColTotals.reduce((a, b) => a + b, 0) / activeColTotals.length;
+                                        setDomCell(doc4, 'H22', minTotal.toFixed(2), false, "IF('TIME MEASUREMENT'!M34=\"\",\"\",'TIME MEASUREMENT'!M34)");
+                                        setDomCell(doc4, 'H23', maxTotal.toFixed(2), false, "IF('TIME MEASUREMENT'!N34=\"\",\"\",'TIME MEASUREMENT'!N34)");
+                                        setDomCell(doc4, 'H24', flucTotal.toFixed(2), false, "IF('TIME MEASUREMENT'!O34=\"\",\"\",'TIME MEASUREMENT'!O34)");
+                                        setDomCell(doc4, 'H25', avgTotal.toFixed(2), false, "IF('TIME MEASUREMENT'!P34=\"\",\"\",'TIME MEASUREMENT'!P34)");
+                                    } else {
+                                        setDomCell(doc4, 'H22', '', true, "IF('TIME MEASUREMENT'!M34=\"\",\"\",'TIME MEASUREMENT'!M34)");
+                                        setDomCell(doc4, 'H23', '', true, "IF('TIME MEASUREMENT'!N34=\"\",\"\",'TIME MEASUREMENT'!N34)");
+                                        setDomCell(doc4, 'H24', '', true, "IF('TIME MEASUREMENT'!O34=\"\",\"\",'TIME MEASUREMENT'!O34)");
+                                        setDomCell(doc4, 'H25', '', true, "IF('TIME MEASUREMENT'!P34=\"\",\"\",'TIME MEASUREMENT'!P34)");
+                                    }
+
+                                    zip.file('xl/worksheets/sheet4.xml', serializer.serializeToString(doc4));
+
+                                    // Update chart2.xml (YAMAZUMI Stacked Column Chart)
+                                    if (zip.file('xl/charts/chart2.xml')) {
+                                        const c2Str = await zip.file('xl/charts/chart2.xml').async('string');
+                                        const docC2 = parser.parseFromString(c2Str, 'application/xml');
+                                        const cNs = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
+                                        const serList = docC2.getElementsByTagNameNS(cNs, 'ser');
+
+                                        for (let i = 0; i < serList.length; i++) {
+                                            const ser = serList[i];
+                                            const fEl = ser.getElementsByTagNameNS(cNs, 'f')[0];
+                                            let rowNum = 5 + i;
+                                            if (fEl && fEl.textContent) {
+                                                const match = fEl.textContent.match(/\$H\$(\d+)/);
+                                                if (match) rowNum = parseInt(match[1], 10);
+                                            }
+                                            const sIdx = rowNum - 5;
+                                            const valEl = ser.getElementsByTagNameNS(cNs, 'val')[0];
+                                            if (valEl) {
+                                                const numRefEl = valEl.getElementsByTagNameNS(cNs, 'numRef')[0];
+                                                const targetParent = numRefEl || valEl;
+                                                const oldNc = targetParent.getElementsByTagNameNS(cNs, 'numCache')[0];
+                                                if (oldNc) targetParent.removeChild(oldNc);
+
+                                                const newNc = docC2.createElementNS(cNs, 'c:numCache');
+                                                const fc = docC2.createElementNS(cNs, 'c:formatCode');
+                                                const pc = docC2.createElementNS(cNs, 'c:ptCount');
+                                                const pt0 = docC2.createElementNS(cNs, 'c:pt');
+                                                pt0.setAttribute('idx', '0');
+                                                const v0 = docC2.createElementNS(cNs, 'c:v');
+
+                                                if (sIdx >= 0 && sIdx < stepPlotVals.length) {
+                                                    fc.textContent = '0.00';
+                                                    pc.setAttribute('val', '2');
+                                                    v0.textContent = stepPlotVals[sIdx].toFixed(2);
+                                                } else {
+                                                    fc.textContent = 'General';
+                                                    pc.setAttribute('val', '2');
+                                                    v0.textContent = '0';
+                                                }
+                                                pt0.appendChild(v0);
+                                                newNc.appendChild(fc);
+                                                newNc.appendChild(pc);
+                                                newNc.appendChild(pt0);
+                                                targetParent.appendChild(newNc);
+                                            }
+
+                                            const catEl = ser.getElementsByTagNameNS(cNs, 'cat')[0];
+                                            if (catEl) {
+                                                const vEl = catEl.getElementsByTagNameNS(cNs, 'v')[0];
+                                                if (vEl) vEl.textContent = `${empName} (${procName})`;
+                                            }
+                                        }
+
+                                        const valAx = docC2.getElementsByTagNameNS(cNs, 'valAx')[0];
+                                        if (valAx) {
+                                            const targetMax = Math.max(30.0, totalSwct * 1.15);
+                                            const unit = targetMax <= 60 ? 5 : (targetMax <= 180 ? 10 : 20);
+                                            const maxVal = Math.ceil(targetMax / unit) * unit;
+                                            const maxEl = valAx.getElementsByTagNameNS(cNs, 'max')[0];
+                                            if (maxEl) maxEl.setAttribute('val', String(maxVal));
+                                            const majEl = valAx.getElementsByTagNameNS(cNs, 'majorUnit')[0];
+                                            if (majEl) majEl.setAttribute('val', String(unit));
+                                        }
+
+                                        zip.file('xl/charts/chart2.xml', serializer.serializeToString(docC2));
+                                    }
+                                }
+
+                                // Clean calcChain to ensure Excel opens without recovery alert
+                                if (zip.file('xl/calcChain.xml')) {
+                                    zip.remove('xl/calcChain.xml');
+                                }
+                                if (zip.file('[Content_Types].xml')) {
+                                    let ctStr = await zip.file('[Content_Types].xml').async('string');
+                                    ctStr = ctStr.replace(/<Override[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g, '');
+                                    zip.file('[Content_Types].xml', ctStr);
+                                }
+                                if (zip.file('xl/_rels/workbook.xml.rels')) {
+                                    let relsStr = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+                                    relsStr = relsStr.replace(/<Relationship[^>]*Target="calcChain\.xml"[^>]*\/>/g, '');
+                                    zip.file('xl/_rels/workbook.xml.rels', relsStr);
+                                }
+
                                 const serializer = new XMLSerializer();
                                 zip.file('xl/worksheets/sheet1.xml', serializer.serializeToString(doc1));
                                 zip.file('xl/worksheets/sheet2.xml', serializer.serializeToString(doc2));
@@ -4260,7 +4391,7 @@
                                 document.body.removeChild(a);
                                 URL.revokeObjectURL(downloadUrl);
 
-                                alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\nครบทั้ง 3 ชีท:\n1. TIME MEASUREMENT (ฟอร์มสรุปจับเวลา)\n2. SWCT (ตารางงานมาตรฐานผสมพร้อมกราฟ)\n3. Raw Data Log (ประวัติการจับเวลาละเอียดย้อนหลัง)`);
+                                alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\nครบทั้ง 4 ชีท:\n1. TIME MEASUREMENT (ฟอร์มสรุปจับเวลา)\n2. SWCT (ตารางงานมาตรฐานผสมพร้อมกราฟ)\n3. Raw Data Log (ประวัติการจับเวลาละเอียดย้อนหลัง)\n4. YAMA (แผนภาพภาระงาน YAMAZUMI CHART พร้อมกราฟแท่งสะสม)`);
                                 templateLoaded = true;
                                 return;
                             }

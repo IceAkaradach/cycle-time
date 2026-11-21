@@ -39,6 +39,8 @@ class handler(BaseHTTPRequestHandler):
             ET.register_namespace('r', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships')
             ET.register_namespace('mc', 'http://schemas.openxmlformats.org/markup-compatibility/2006')
             ET.register_namespace('x14ac', 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac')
+            ET.register_namespace('c', 'http://schemas.openxmlformats.org/drawingml/2006/chart')
+            ET.register_namespace('a', 'http://schemas.openxmlformats.org/drawingml/2006/main')
 
             tree1 = ET.fromstring(files['xl/worksheets/sheet1.xml'])
             tree2 = ET.fromstring(files['xl/worksheets/sheet2.xml'])
@@ -152,6 +154,7 @@ class handler(BaseHTTPRequestHandler):
             col_letters = ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
             pts_ser0 = []
             pts_ser1 = []
+            step_plot_vals = []
             cum_time = 0.0
 
             col_totals = [0.0] * 10
@@ -230,6 +233,7 @@ class handler(BaseHTTPRequestHandler):
 
                         pts_ser0.append((chart_idx, cum_time))
                         pts_ser1.append((chart_idx, plot_val))
+                        step_plot_vals.append(plot_val)
 
                         set_cell_dom(tree2, f'EE{swct_row}', f'{cum_time:.2f}', is_str=False)
                         cum_time += plot_val
@@ -402,6 +406,112 @@ class handler(BaseHTTPRequestHandler):
                     '</worksheet>'
                 )
                 files['xl/worksheets/sheet3.xml'] = sheet3_xml.encode('utf-8')
+
+            # Populate Sheet 4: YAMA (YAMAZUMI CHART)
+            if 'xl/worksheets/sheet4.xml' in files:
+                tree4 = ET.fromstring(files['xl/worksheets/sheet4.xml'])
+                set_cell_dom(tree4, 'J2', process_val, is_str=True)
+                set_cell_dom(tree4, 'P2', emp_val, is_str=True)
+                set_cell_dom(tree4, 'V2', date_val, is_str=True)
+                set_cell_dom(tree4, 'H2', model_val, is_str=True)
+
+                for s_idx, s in enumerate(steps):
+                    y_row = 5 + s_idx
+                    swct_row = 7 + s_idx * 2
+                    if y_row <= 21:
+                        set_cell_dom(tree4, f'B{y_row}', s_idx + 1, is_str=False)
+                        step_name = s.get('name', '')
+                        plot_val = step_plot_vals[s_idx] if s_idx < len(step_plot_vals) else 0.0
+                        set_cell_dom(tree4, f'C{y_row}', step_name, is_str=True, new_formula=f'IF(SWCT!C{swct_row}="","",SWCT!C{swct_row})')
+                        set_cell_dom(tree4, f'H{y_row}', f'{plot_val:.2f}', is_str=False, new_formula=f'IF(SWCT!G{swct_row}="","",SWCT!G{swct_row})')
+
+                for u_row in range(5 + len(steps), 22):
+                    set_cell_dom(tree4, f'B{u_row}', '', is_str=True)
+                    set_cell_dom(tree4, f'C{u_row}', '', is_str=True)
+                    set_cell_dom(tree4, f'H{u_row}', '', is_str=True)
+
+                if active_col_totals:
+                    set_cell_dom(tree4, 'H22', f'{min_total:.2f}', is_str=False, new_formula="IF('TIME MEASUREMENT'!M34=\"\",\"\",'TIME MEASUREMENT'!M34)")
+                    set_cell_dom(tree4, 'H23', f'{max_total:.2f}', is_str=False, new_formula="IF('TIME MEASUREMENT'!N34=\"\",\"\",'TIME MEASUREMENT'!N34)")
+                    set_cell_dom(tree4, 'H24', f'{fluc_total:.2f}', is_str=False, new_formula="IF('TIME MEASUREMENT'!O34=\"\",\"\",'TIME MEASUREMENT'!O34)")
+                    set_cell_dom(tree4, 'H25', f'{avg_total:.2f}', is_str=False, new_formula="IF('TIME MEASUREMENT'!P34=\"\",\"\",'TIME MEASUREMENT'!P34)")
+                else:
+                    set_cell_dom(tree4, 'H22', '', is_str=True, new_formula="IF('TIME MEASUREMENT'!M34=\"\",\"\",'TIME MEASUREMENT'!M34)")
+                    set_cell_dom(tree4, 'H23', '', is_str=True, new_formula="IF('TIME MEASUREMENT'!N34=\"\",\"\",'TIME MEASUREMENT'!N34)")
+                    set_cell_dom(tree4, 'H24', '', is_str=True, new_formula="IF('TIME MEASUREMENT'!O34=\"\",\"\",'TIME MEASUREMENT'!O34)")
+                    set_cell_dom(tree4, 'H25', '', is_str=True, new_formula="IF('TIME MEASUREMENT'!P34=\"\",\"\",'TIME MEASUREMENT'!P34)")
+
+                files['xl/worksheets/sheet4.xml'] = ET.tostring(tree4, encoding='utf-8', xml_declaration=True)
+
+            # Update chart2.xml (YAMAZUMI Stacked Column Chart)
+            if 'xl/charts/chart2.xml' in files:
+                tree_c2 = ET.fromstring(files['xl/charts/chart2.xml'])
+                c_ns = {'c': 'http://schemas.openxmlformats.org/drawingml/2006/chart'}
+
+                for ser in tree_c2.findall('.//c:ser', c_ns):
+                    f_el = ser.find('.//c:val//c:f', c_ns)
+                    if f_el is not None and 'YAMA!$H$' in (f_el.text or ''):
+                        m = re.search(r'\$H\$(\d+)', f_el.text)
+                        if m:
+                            row_num = int(m.group(1))
+                            s_idx = row_num - 5
+                            val_el = ser.find('.//c:val', c_ns)
+                            if val_el is not None:
+                                num_ref = val_el.find('c:numRef', c_ns)
+                                target_parent = num_ref if num_ref is not None else val_el
+                                nc = target_parent.find('c:numCache', c_ns)
+                                if nc is not None:
+                                    target_parent.remove(nc)
+
+                                new_nc = ET.SubElement(target_parent, '{http://schemas.openxmlformats.org/drawingml/2006/chart}numCache')
+                                if 0 <= s_idx < len(step_plot_vals):
+                                    fc = ET.SubElement(new_nc, '{http://schemas.openxmlformats.org/drawingml/2006/chart}formatCode')
+                                    fc.text = '0.00'
+                                    pc = ET.SubElement(new_nc, '{http://schemas.openxmlformats.org/drawingml/2006/chart}ptCount')
+                                    pc.attrib['val'] = '2'
+                                    pt0 = ET.SubElement(new_nc, '{http://schemas.openxmlformats.org/drawingml/2006/chart}pt')
+                                    pt0.attrib['idx'] = '0'
+                                    v0 = ET.SubElement(pt0, '{http://schemas.openxmlformats.org/drawingml/2006/chart}v')
+                                    v0.text = f'{step_plot_vals[s_idx]:.2f}'
+                                else:
+                                    fc = ET.SubElement(new_nc, '{http://schemas.openxmlformats.org/drawingml/2006/chart}formatCode')
+                                    fc.text = 'General'
+                                    pc = ET.SubElement(new_nc, '{http://schemas.openxmlformats.org/drawingml/2006/chart}ptCount')
+                                    pc.attrib['val'] = '2'
+                                    pt0 = ET.SubElement(new_nc, '{http://schemas.openxmlformats.org/drawingml/2006/chart}pt')
+                                    pt0.attrib['idx'] = '0'
+                                    v0 = ET.SubElement(pt0, '{http://schemas.openxmlformats.org/drawingml/2006/chart}v')
+                                    v0.text = '0'
+
+                    cat_v = ser.find('.//c:cat//c:v', c_ns)
+                    if cat_v is not None:
+                        cat_v.text = f'{emp_val} ({process_val})'
+
+                # Dynamic axis scaling for chart2
+                val_ax2 = tree_c2.find('.//c:valAx', c_ns)
+                if val_ax2 is not None:
+                    max_el2 = val_ax2.find('.//c:scaling/c:max', c_ns)
+                    target_max2 = max(30.0, total_swct * 1.15)
+                    unit2 = 5 if target_max2 <= 60 else (10 if target_max2 <= 180 else 20)
+                    max_val2 = int(math.ceil(target_max2 / unit2) * unit2)
+                    if max_el2 is not None:
+                        max_el2.attrib['val'] = str(max_val2)
+                    maj_el2 = val_ax2.find('c:majorUnit', c_ns)
+                    if maj_el2 is not None:
+                        maj_el2.attrib['val'] = str(unit2)
+
+                files['xl/charts/chart2.xml'] = ET.tostring(tree_c2, encoding='utf-8')
+
+            # Clean calcChain to ensure Excel opens without recovery alert
+            files.pop('xl/calcChain.xml', None)
+            if '[Content_Types].xml' in files:
+                ct_clean = files['[Content_Types].xml'].decode('utf-8')
+                ct_clean = re.sub(r'<Override[^>]*PartName="/xl/calcChain\.xml"[^>]*/>', '', ct_clean)
+                files['[Content_Types].xml'] = ct_clean.encode('utf-8')
+            if 'xl/_rels/workbook.xml.rels' in files:
+                rels_clean = files['xl/_rels/workbook.xml.rels'].decode('utf-8')
+                rels_clean = re.sub(r'<Relationship[^>]*Target="calcChain\.xml"[^>]*/>', '', rels_clean)
+                files['xl/_rels/workbook.xml.rels'] = rels_clean.encode('utf-8')
 
             wb_xml = files['xl/workbook.xml'].decode('utf-8')
             if 'fullCalcOnLoad' not in wb_xml:
