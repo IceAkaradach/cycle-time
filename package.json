@@ -1,0 +1,18 @@
+{
+  "name": "cycle-time",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cycle Time Video Study & Standardized Work Combination Table (SWCT) Generator",
+  "scripts": {
+    "start": "python3 app_server.py"
+  },
+  "keywords": [
+    "cycle-time",
+    "work-study",
+    "swct",
+    "kaizen",
+    "ie",
+    "excel"
+  ],
+  "author": "IceAkaradach"
+}

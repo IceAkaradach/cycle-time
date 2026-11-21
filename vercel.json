@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/export_template_excel", "destination": "/api/export_template_excel.py" }
+  ]
+}

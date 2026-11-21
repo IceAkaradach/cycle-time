@@ -1,0 +1,39 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Node dependencies
+node_modules/
+package-lock.json
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Operating System & IDEs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Large Video files
+*.MOV
+*.mov
+*.mp4
+*.mkv
+*.avi
+
+# Backup & Temporary files
+*.bak
+*.backup*
+*.log
+test_*.xlsx
+test_*.py
+Time.xlsx.bak
+
+# macOS App Bundles
+*.app/

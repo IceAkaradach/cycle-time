@@ -1,0 +1,4032 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>⏱️ Cycle Time Video Logger (Web App)</title>
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS for Exporting Excel Files -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- JSZip for Exact Template Preservation & Charts Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Embedded Base64 Master Template (Time.xlsx) to guarantee 100% chart & formatting offline/file:// -->
+    <script src="time_template_b64.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-panel: #1e293b;
+            --bg-input: #334155;
+            --border-color: #475569;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #0ea5e9;
+            --accent-blue-hover: #0284c7;
+            --accent-green: #10b981;
+            --accent-green-hover: #059669;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --font-display: 'Outfit', 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: var(--font-display);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* Glassmorphism Panel Container */
+        .container {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            width: 96%;
+            max-width: 1460px;
+            padding: 24px 28px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-align: center;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            text-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+        }
+
+        /* --- PHASE 1: SETUP SCREEN --- */
+        .setup-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-light);
+            letter-spacing: 0.5px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="text"], .file-dummy {
+            width: 100%;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.25s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.35);
+        }
+
+        /* File Upload Styling */
+        .file-dummy {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-dummy.has-file {
+            border-color: var(--accent-green);
+        }
+
+        .file-btn {
+            background-color: var(--accent-blue);
+            color: white;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .file-dummy:hover .file-btn {
+            background-color: var(--accent-blue-hover);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Instructions Card */
+        .instruction-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+
+        .instruction-card h3 {
+            font-size: 15px;
+            color: var(--accent-blue);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .instruction-card ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .instruction-card li strong {
+            color: var(--text-light);
+        }
+
+        /* Action Buttons */
+        .btn {
+            background-color: var(--accent-green);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 30px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-green-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-blue {
+            background-color: var(--accent-blue);
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.2);
+        }
+
+        .btn-blue:hover {
+            background-color: var(--accent-blue-hover);
+        }
+
+        /* --- PHASE 2: WORKSTUDY DASHBOARD SCREEN --- */
+        .dashboard-screen {
+            display: none;
+            grid-template-columns: minmax(600px, 1fr) 480px;
+            gap: 24px;
+        }
+
+        @media (max-width: 1180px) {
+            .dashboard-screen {
+                grid-template-columns: 1fr 420px;
+            }
+        }
+
+        @media (max-width: 950px) {
+            .dashboard-screen {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Player Panel (Left Column) */
+        .player-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .video-container {
+            position: relative;
+            background-color: black;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            aspect-ratio: 16 / 9;
+            width: 100%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* Live HUD Overlay on Video Player */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none; /* Let clicks pass through to player */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.85) 100%);
+            font-family: inherit;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-badge {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(8px);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+
+        .hud-badge.time-readout {
+            color: #22c55e;
+            font-size: 15px;
+            font-weight: 700;
+            pointer-events: auto !important; /* ให้คลิกลากก๊อปปี้ข้อความได้ (ข้อ 6) */
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            cursor: text;
+        }
+
+        .hud-stats-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .hud-stat-item {
+            background: rgba(15, 23, 42, 0.7);
+            border-left: 3px solid var(--accent-blue);
+            backdrop-filter: blur(8px);
+            padding: 6px 12px;
+            border-radius: 0 6px 6px 0;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .hud-stat-item span {
+            color: var(--accent-blue);
+        }
+
+        .hud-center {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+            margin-bottom: 70px; /* offset bottom control bar height */
+        }
+
+        .hud-indicator {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .hud-indicator.start-time {
+            color: #facc15;
+            border-left: 4px solid #facc15;
+        }
+
+        .hud-indicator.current-cycle {
+            color: #38bdf8;
+            border-left: 4px solid #38bdf8;
+            animation: pulse-ring 1.8s infinite;
+        }
+
+        .hud-indicator.auto-hud {
+            color: #f97316;
+            border-left: 4px solid #f97316;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+        }
+
+        /* Responsive Controls Bar overlay at the bottom */
+        .controls-bar {
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 8px 14px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 62px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            box-sizing: border-box;
+            pointer-events: auto;
+            z-index: 10;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .controls-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .bar-btn {
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 8px 12px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .bar-btn-play {
+            background-color: var(--accent-orange);
+            border-color: transparent;
+            width: 76px;
+        }
+
+        .bar-btn-play:hover {
+            background-color: #ea580c;
+        }
+
+        .bar-btn-seek {
+            background-color: #334155;
+            padding: 8px 10px;
+        }
+
+        .bar-btn-action {
+            background-color: var(--accent-green);
+            border-color: transparent;
+            min-width: 130px;
+            padding: 8px 16px;
+        }
+
+        .bar-btn-action:hover {
+            background-color: var(--accent-green-hover);
+        }
+
+        .bar-btn-action.active-capture {
+            background-color: var(--accent-red);
+        }
+
+        .bar-btn-action.active-capture:hover {
+            background-color: #dc2626;
+        }
+
+        .bar-btn-home {
+            background-color: #3b82f6;
+            border-color: transparent;
+            padding: 8px 12px;
+        }
+
+        .bar-btn-home:hover {
+            background-color: #2563eb;
+        }
+
+        .bar-btn-close {
+            background-color: #10b981;
+            border-color: transparent;
+            min-width: 110px;
+            padding: 8px 14px;
+            font-weight: 700;
+        }
+
+        .bar-btn-close:hover {
+            background-color: #059669;
+        }
+
+        .speed-control-box {
+            display: flex;
+            align-items: center;
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            padding: 0 4px;
+            gap: 2px;
+            height: 38px;
+            flex-shrink: 0;
+        }
+
+        .speed-step-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            color: #94a3b8;
+            border-radius: 6px;
+            width: 24px;
+            height: 26px;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+
+        .speed-step-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.22);
+        }
+
+        .speed-step-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* AI Motion Analysis Button & Panel Styles */
+        
+
+        /* Dynamic Work Step Control Panel (Glassmorphic) */
+        .step-control-panel {
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            backdrop-filter: blur(8px);
+        }
+
+        .step-input-group {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+        }
+
+        #stepSelect {
+            width: 100%;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        #stepSelect:focus {
+            border-color: var(--accent-blue);
+        }
+
+        #newStepInput {
+            width: 100%;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        #newStepInput:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 8px rgba(14, 165, 233, 0.25);
+        }
+
+        /* HTML5 Timeline Progress Bar */
+        .timeline-container {
+            position: absolute;
+            bottom: 68px;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background-color: rgba(255,255,255,0.2);
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 20;
+            transition: height 0.15s;
+        }
+
+        .timeline-container:hover {
+            height: 16px;
+            background-color: rgba(255,255,255,0.35);
+        }
+
+        .timeline-progress {
+            height: 100%;
+            background-color: var(--accent-blue);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* Sidebar Panel (Right Column) */
+        .sidebar-panel {
+            background: rgba(15, 23, 42, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 720px;
+        }
+
+        /* Sidebar View Mode Tabs */
+        .sidebar-tab-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-tab-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-tab-btn.active {
+            background: #0284c7;
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+        }
+
+        /* Matrix Table Styling */
+        .cycle-matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            color: #f8fafc;
+            white-space: nowrap;
+        }
+
+        .cycle-matrix-table th {
+            background: #1e293b;
+            color: #38bdf8;
+            padding: 6px 8px;
+            border: 1px solid #334155;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .cycle-matrix-table td {
+            padding: 5px 8px;
+            border: 1px solid #334155;
+            text-align: right;
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .cycle-matrix-table td.col-step {
+            text-align: left;
+            font-weight: 600;
+            color: #e2e8f0;
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cycle-matrix-table td.col-avg {
+            font-weight: 700;
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.12);
+        }
+
+        .cycle-matrix-table tr.row-total td {
+            background: #1e293b;
+            font-weight: 700;
+            color: #fbbf24;
+            border-top: 2px solid #475569;
+        }
+
+        .sidebar-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cycle-badge-count {
+            background-color: var(--accent-blue);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .cycle-list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 5px;
+        }
+
+        /* Beautiful Scrollbar for list container */
+        .cycle-list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .cycle-list-container::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        .cycle-list-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .cycle-item {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slide-in 0.25s ease-out;
+            transition: background 0.2s;
+        }
+
+        .cycle-item:hover {
+            background: rgba(30, 41, 59, 1);
+            border-color: rgba(14, 165, 233, 0.3);
+        }
+
+        @keyframes slide-in {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .cycle-item-left {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .cycle-item-no {
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .cycle-item-type {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .cycle-item-duration {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-green);
+        }
+
+        /* Discard Warning Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.75);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            padding: 25px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            animation: pop-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes pop-up {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-body {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.15s;
+        }
+
+        .modal-btn-cancel {
+            background-color: #475569;
+            color: white;
+        }
+
+        .modal-btn-cancel:hover {
+            background-color: #64748b;
+        }
+
+        .modal-btn-danger {
+            background-color: var(--accent-red);
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-add-step {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-add-step:hover {
+            background-color: var(--accent-blue-hover);
+            transform: scale(1.05);
+        }
+        .btn-add-step:active {
+            transform: scale(0.95);
+        }
+
+        .sidebar-step-select {
+            background-color: var(--bg-input);
+            font-size: 11px;
+            padding: 2px 20px 2px 6px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: var(--accent-blue);
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            font-family: inherit;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%230ea5e9%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 6px top 50%;
+            background-size: 8px auto;
+        }
+
+        /* Home Button Styling */
+        .bar-btn-home {
+            background-color: #475569;
+            border-color: transparent;
+            width: 120px;
+        }
+        
+        .bar-btn-home:hover {
+            background-color: #64748b;
+        }
+
+        /* Seek Start Button Styling */
+        .bar-btn-seek {
+            background-color: #334155;
+            border-color: rgba(255, 255, 255, 0.1);
+            width: 100px;
+        }
+        
+        .bar-btn-seek:hover {
+            background-color: #475569;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Sidebar Cycle Item Actions */
+        .cycle-action-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-light);
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+
+        .cycle-action-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .cycle-action-btn.delete-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .cycle-action-btn.edit-btn:hover {
+            background: rgba(14, 165, 233, 0.2);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .cycle-action-btn.play-item-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .hud-indicator.review-hud {
+            color: var(--accent-green);
+            border-left: 4px solid var(--accent-green);
+            animation: pulse-ring-green 1.8s infinite;
+        }
+
+        @keyframes pulse-ring-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Batch Action Bar for Multiple Selections */
+        .batch-action-bar {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            animation: slide-in 0.2s ease-out;
+            flex-wrap: wrap;
+        }
+
+        .batch-btn {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .batch-btn:hover {
+            filter: brightness(1.15);
+            transform: translateY(-1px);
+        }
+
+        .batch-btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        /* Cycle Item Checkbox */
+        .cycle-checkbox-wrap {
+            display: flex;
+            align-items: center;
+            margin-right: 6px;
+            cursor: pointer;
+        }
+
+        .cycle-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        /* Quick Badge Step Selector */
+        .sidebar-step-badge {
+            background: rgba(14, 165, 233, 0.2);
+            border: 1px solid rgba(14, 165, 233, 0.4);
+            color: #38bdf8;
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-step-badge:hover {
+            background: rgba(14, 165, 233, 0.35);
+            border-color: #38bdf8;
+            transform: scale(1.02);
+        }
+
+        /* Quick Step Picker Popover */
+        .quick-step-popover {
+            position: absolute;
+            background: #1e293b;
+            border: 1px solid rgba(56, 189, 248, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+            max-width: 240px;
+            max-height: 220px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            animation: slide-in 0.15s ease-out;
+        }
+
+        .quick-step-option {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-light);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .quick-step-option:hover {
+            background: var(--accent-blue);
+            color: white;
+            border-color: #38bdf8;
+        }
+
+        .quick-step-option.active {
+            border-left: 3px solid #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+        }
+
+        /* Auto Sequence Chain Toolbar */
+        .sequence-chain-bar {
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sequence-chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-light);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sequence-chips-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .seq-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .seq-chip:hover {
+            border-color: var(--accent-blue);
+            color: var(--text-light);
+        }
+
+        .seq-chip.active-seq {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            border-color: #38bdf8;
+            color: white;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+            transform: scale(1.05);
+        }
+
+        .seq-chip.active-seq::before {
+            content: "▶";
+            font-size: 10px;
+            color: #34d399;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container" id="mainContainer">
+        <h1>⏱️ Cycle Time Video Logger</h1>
+
+        <!-- ========================================== -->
+        <!-- PHASE 1: SETUP SCREEN                      -->
+        <!-- ========================================== -->
+        <div class="setup-screen" id="setupScreen">
+            <div class="form-group">
+                <label>1. เลือกไฟล์ Video การทำงาน</label>
+                <div class="file-dummy" id="fileDummy" onclick="document.getElementById('videoInput').click()">
+                    <span id="fileNameText">ยังไม่ได้เลือกไฟล์วิดีโอ...</span>
+                    <span class="file-btn">เลือกไฟล์</span>
+                </div>
+                <input type="file" id="videoInput" accept="video/*" onchange="handleVideoSelect(this)">
+            </div>
+
+            <div class="form-group">
+                <label>2. ชื่อพนักงาน (Employee)</label>
+                <input type="text" id="employeeInput" value="Employee 1" placeholder="กรอกชื่อหรือรหัสพนักงาน...">
+            </div>
+
+            <div class="form-group">
+                <label>3. ขั้นตอนแรกของการทำงาน (First Work Step - ปล่อยว่างเพื่อพิมพ์เพิ่มทีหลังได้)</label>
+                <input type="text" id="workStepInput" value="" placeholder="เช่น หยิบชิ้นงาน, เย็บวน (หรือปล่อยว่างไว้ก่อนได้)...">
+            </div>
+
+            <div class="form-group">
+                <label>4. นำเข้าไฟล์ Excel ประวัติเดิมเพื่อดูซ้ำ/แก้ไข (Optional Import Excel)</label>
+                <div class="file-dummy" id="excelDummy" onclick="document.getElementById('excelInput').click()">
+                    <span id="excelNameText">ยังไม่ได้เลือกไฟล์บันทึกเวลาเดิม...</span>
+                    <span class="file-btn" style="background-color: var(--accent-orange);">เลือกไฟล์</span>
+                </div>
+                <input type="file" id="excelInput" accept=".xlsx" onchange="handleImportExcel(this)">
+            </div>
+
+            <div class="instruction-card">
+                <h3>💡 คู่มือวิธีคุมคีย์บอร์ดตอนวิดีโอเปิด:</h3>
+                <ul>
+                    <li>⌨️ <strong>Spacebar</strong> : เริ่มต้นจับเวลา / สิ้นสุดรอบและบันทึกผล</li>
+                    <li>⌨️ <strong>แป้นตัว P</strong> : หยุดเล่นวิดีโอชั่วคราว / เล่นวิดีโอต่อ</li>
+                    <li>⌨️ <strong>แป้นตัว R</strong> : ย้อนกลับไปจุดเริ่มต้นวิดีโอ (00:00)</li>
+                    <li>⌨️ <strong>แป้นตัว Q</strong> : กดสิ้นสุดการทำวิดีโอและเข้าสู่หน้าดาวน์โหลดไฟล์ Excel</li>
+                    <li>⚡ <strong>แป้น [ หรือ -</strong> : ลดความเร็ววิดีโอ | <strong>แป้น ] หรือ +</strong> : เพิ่มความเร็ววิดีโอ (ปรับได้ถึง 5.0x)</li>
+                    <li>🎯 <strong>โหมดรอบแม่แบบ (Template Master)</strong> : บันทึกขั้นตอนรอบแรกด้วยมือ จากนั้นกดล็อคแม่แบบเพื่อให้ระบบจับเวลาและเปลี่ยนขั้นตอนรอบต่อไปอัตโนมัติ</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-blue" style="margin-top: 15px;" onclick="startWorkstudySession()">
+                🚀 เริ่มกระบวนการจับเวลา
+            </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PHASE 2: WORKSTUDY DASHBOARD SCREEN        -->
+        <!-- ========================================== -->
+        <div class="dashboard-screen" id="dashboardScreen">
+            <!-- Left Side: Custom Video Player & Controls -->
+            <div class="player-panel">
+                <div class="video-container" id="videoContainer">
+                    <video id="timeVideo" playsinline preload="auto">
+                        <!-- Object URL dynamically loaded here -->
+                    </video>
+
+
+                    <!-- HTML5 Custom Timeline -->
+                    <div class="timeline-container" id="timelineContainer" onclick="handleTimelineClick(event)">
+                        <div class="timeline-progress" id="timelineProgress"></div>
+                    </div>
+
+                    <!-- Live HUD Overlay -->
+                    <div class="hud-overlay">
+                        <div class="hud-top">
+                            <div class="hud-badge time-readout" id="hudTimeBox" style="display:flex; align-items:center; gap:6px; cursor:default;">
+                                <span>Time:</span>
+                                <span id="hudCurrentSec" style="color:#22c55e; font-weight:bold; cursor:text; padding:1px 4px; border-radius:4px; background:rgba(34,197,94,0.15);" title="ดับเบิลคลิก หรือไฮไลท์เพื่อก๊อปปี้ตัวเลขวินาที">0.00</span>
+                                <span>/</span>
+                                <span id="hudTotalSec" style="color:#94a3b8;">0.00</span>
+                                <span style="color:#94a3b8; font-size:11px;">sec</span>
+                                <button type="button" onclick="copyCurrentVideoTime(event)" style="background:#1e293b; border:1px solid #475569; color:#f8fafc; border-radius:4px; padding:2px 6px; font-size:11px; cursor:pointer; margin-left:4px;" title="คลิกเพื่อคัดลอก (Copy) วินาทีปัจจุบันทันที">📋 ก๊อปปี้</button>
+                            </div>
+                            <div class="hud-badge" id="hudRecordedText">Recorded: 0 times</div>
+                        </div>
+
+                        <!-- Central Active Study Metrics -->
+                        <div class="hud-center">
+                            <div class="hud-stats-stack">
+                                <div class="hud-stat-item">Employee: <span id="hudEmployeeVal">-</span></div>
+                                <div class="hud-stat-item">Work Step: <span id="hudWorkStepVal">-</span></div>
+                            </div>
+                            <div class="hud-indicator start-time" id="hudStartVal" style="display: none;">START: 0.00 sec</div>
+                            <div class="hud-indicator current-cycle" id="hudCurrentCycleVal" style="display: none;">CURRENT CYCLE: 0.00 sec</div>
+                            <div class="hud-indicator review-hud" id="hudReviewVal" style="display: none;">👁️ REVIEWING SEGMENT</div>
+                        </div>
+
+                        <!-- bottom-bar overlays standard HTML controls -->
+                        <div class="controls-bar">
+                            <button class="bar-btn bar-btn-play" id="btnPlayPause" onclick="togglePlayPause()">PLAY</button>
+                            <button class="bar-btn bar-btn-seek" onclick="seekToStart()" title="ย้อนกลับไปต้นคลิป (00:00)">SEEK 00:00</button>
+                            
+                            <!-- 1. ปุ่มเปิด/ปิดเสียง (Mute Toggle) -->
+                            <button class="bar-btn" id="btnMuteToggle" onclick="toggleMuteVideo()" style="background:#334155; min-width:44px; padding:8px 10px;" title="เปิด/ปิดเสียงวิดีโอ (ข้อ 1)">🔊</button>
+                            
+                            <!-- 4. ตัวเลือกความเร็ววิดีโอ (Playback Speed: เพิ่ม-ลด ได้ถึง 5.0x) -->
+                            <div class="speed-control-box" title="ปรับความเร็วการเล่นวิดีโอ (กด - หรือ + หรือ [ / ] บนคีย์บอร์ด ได้ถึง 5.0x)">
+                                <button type="button" class="speed-step-btn" onclick="stepPlaybackSpeed(-1)" title="ลดความเร็ว (คีย์บอร์ด: [ หรือ -)">−</button>
+                                <span style="font-size:11px; color:#94a3b8; margin:0 2px;">⚡</span>
+                                <select id="speedSelect" onchange="changePlaybackSpeed(this.value)" style="background:transparent; border:none; color:white; font-size:12px; font-weight:700; outline:none; cursor:pointer; padding:7px 2px;">
+                                    <option value="0.25">0.25x</option>
+                                    <option value="0.5">0.5x</option>
+                                    <option value="0.75">0.75x</option>
+                                    <option value="1.0" selected>1.0x</option>
+                                    <option value="1.25">1.25x</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="1.75">1.75x</option>
+                                    <option value="2.0">2.0x</option>
+                                    <option value="2.5">2.5x</option>
+                                    <option value="3.0">3.0x</option>
+                                    <option value="3.5">3.5x</option>
+                                    <option value="4.0">4.0x</option>
+                                    <option value="4.5">4.5x</option>
+                                    <option value="5.0">5.0x</option>
+                                </select>
+                                <button type="button" class="speed-step-btn" onclick="stepPlaybackSpeed(1)" title="เพิ่มความเร็ว (คีย์บอร์ด: ] หรือ +)">+</button>
+                            </div>
+
+                            <button class="bar-btn bar-btn-action" id="btnAction" onclick="triggerSessionCapture()">START CYCLE</button>
+                            <button class="bar-btn bar-btn-home" onclick="handleHomeButtonClick()">START NEW VIDEO</button>
+                            <button class="bar-btn bar-btn-close" id="btnSaveData" onclick="finishWorkstudySession()" title="กดเพื่อบันทึกและส่งออกข้อมูลรอบเวลาเป็นไฟล์ Excel ตามแบบฟอร์มมาตรฐาน">💾 บันทึกข้อมูล</button>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- Dynamic Work Parameters Control Panel (Glassmorphic) -->
+                <div class="step-control-panel"><div class="step-input-group">
+                        <!-- Employee Name Field (Editable on the fly) -->
+                        <div style="display:flex; flex-direction:column; gap:4px; flex:1.1;">
+                            <label for="employeeSelectInput" style="font-size:12px; color:var(--accent-blue);">ชื่อพนักงาน (Employee Name)</label>
+                            <input type="text" id="employeeSelectInput" placeholder="ชื่อพนักงาน..." oninput="handleEmployeeInput(this)">
+                        </div>
+                        <!-- Existing Steps Select -->
+                        <div style="display:flex; flex-direction:column; gap:4px; flex:1.1;">
+                            <label for="stepSelect" style="font-size:12px; color:var(--accent-blue);">ขั้นตอนที่จับแล้ว (Existing Steps)</label>
+                            <select id="stepSelect" onchange="handleStepSelectChange(this)">
+                                <!-- Dynamic options loaded here -->
+                            </select>
+                        </div>
+                        <!-- New Step Input -->
+                        <div style="display:flex; flex-direction:column; gap:4px; flex:1.5;">
+                            <label for="newStepInput" style="font-size:12px; color:var(--accent-blue);">หรือพิมพ์เพิ่มขั้นตอนใหม่ (Or Add New Step)</label>
+                            <div style="display:flex; gap:8px;">
+                                <input type="text" id="newStepInput" placeholder="พิมพ์ขั้นตอนใหม่..." oninput="handleNewStepInput(this)" onkeydown="handleNewStepKeydown(event)">
+                                <button type="button" class="btn-add-step" onclick="addNewStepDirectly()">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto Sequence Chain Bar (โหมดวนลูปขั้นตอนอัตโนมัติตอนกด Spacebar) -->
+                    <div class="sequence-chain-bar" id="sequenceChainBar">
+                        <div class="sequence-chain-header">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span>🔄 โหมดวนลูปขั้นตอนอัตโนมัติ (Auto Sequence):</span>
+                                <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:12px; color:#38bdf8;">
+                                    <input type="checkbox" id="chkAutoSequence" checked onchange="toggleAutoSequence(this.checked)" style="accent-color:#38bdf8; width:15px; height:15px; cursor:pointer;">
+                                    <span>เปิดใช้งาน (เคาะ Spacebar แล้วสลับขั้นตอนถัดไปให้อัตโนมัติ)</span>
+                                </label>
+                            </div>
+                            <span id="seqNotice" style="font-size:11px; color:#94a3b8;">กด <kbd style="background:#1e293b; padding:2px 5px; border-radius:4px; border:1px solid #475569; color:#f8fafc;">Spacebar</kbd> จะวนลูปไปขั้นตอนถัดไป</span>
+                        </div>
+                        <div class="sequence-chips-row" id="sequenceChipsRow">
+                            <!-- Dynamic Sequence Chips populated here -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Right Side: Live Record History Sidebar -->
+            <div class="sidebar-panel">
+                <div class="sidebar-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>📋 รายการที่จับได้</span>
+                            <span class="cycle-badge-count" id="cycleBadgeCount">0</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button id="btnUndoDelete" onclick="undoDeleteCycle()" style="display: none; background: #334155; border: 1px solid var(--border-color); color: #f8fafc; border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer; transition: background 0.2s;" title="กู้คืนรอบเวลาที่เพิ่งลบ">↩️ เลิกทำ</button>
+                        </div>
+                    </div>
+                    <!-- View Mode Toggle Tabs -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="sidebar-tab-btn active" id="tabBtnList" onclick="switchSidebarView('list')" title="ดูรายการทีละขั้นตอน">📜 รายการ</button>
+                            <button type="button" class="sidebar-tab-btn" id="tabBtnMatrix" onclick="switchSidebarView('matrix')" title="ดูตารางสรุปแต่ละรอบแบบ Excel">📊 ตารางรอบ (Excel)</button>
+                        </div>
+                        <label id="selectAllWrap" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; font-weight: normal;">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAllCycles(this.checked)" style="accent-color: var(--accent-blue); cursor: pointer;">
+                            <span>เลือกทั้งหมด</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Batch Action Bar (ปรากฏเมื่อติ๊กเลือกอย่างน้อย 1 รายการ) -->
+                <div class="batch-action-bar" id="batchActionBar" style="display: none;">
+                    <span id="batchCountText" style="font-size: 12px; font-weight: 700; color: #38bdf8;">เลือกไว้ 0 รายการ</span>
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <select id="batchStepSelect" style="background: #0f172a; border: 1px solid var(--border-color); color: #f8fafc; border-radius: 6px; padding: 4px 8px; font-size: 11.5px; outline: none; cursor: pointer;">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <button type="button" class="batch-btn" onclick="applyBatchStepChange()">เปลี่ยนพร้อมกัน</button>
+                        <button type="button" class="batch-btn batch-btn-danger" onclick="deleteSelectedCycles()" title="ลบรายการที่เลือก">🗑️ ลบที่เลือก</button>
+                    </div>
+                </div>
+
+                <!-- View 1: List Container -->
+                <div class="cycle-list-container" id="cycleListContainer">
+                    <!-- Dynamic cycle items populate here -->
+                </div>
+
+                <!-- View 2: Matrix Table Container (Excel Style) -->
+                <div class="cycle-matrix-container" id="cycleMatrixContainer" style="display: none; flex-grow: 1; overflow: auto; padding-right: 4px;">
+                    <!-- Dynamic matrix table populates here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- UN-SAVED DISCARD CONFIRMATION MODAL        -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="discardModal">
+        <div class="modal-card">
+            <div class="modal-title">⚠️ ยืนยันการเริ่มวิดีโอใหม่โดยไม่บันทึก?</div>
+            <div class="modal-body">
+                คุณยังมีข้อมูลรอบเวลาที่จับได้ค้างอยู่ในระบบ หากกดยืนยัน ข้อมูลทั้งหมดในเซสชันนี้จะ <strong>สูญหายไปทันที</strong> และไม่สามารถกู้คืนได้
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeDiscardModal()">กลับไปบันทึก</button>
+                <button class="modal-btn modal-btn-danger" onclick="confirmDiscardSession()">เริ่มวิดีโอใหม่โดยไม่เซฟ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- EDIT CYCLE MODAL                           -->
+    <!-- ========================================== -->
+    
+    <!-- ========================================== -->
+    <!-- RENAME WORK STEP MODAL (ข้อ 5)              -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="renameStepModal">
+        <div class="modal-card">
+            <div class="modal-title">✏️ แก้ไขชื่อขั้นตอนการทำงาน</div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <input type="hidden" id="oldStepNameInput">
+                <div class="form-group">
+                    <label style="color: var(--accent-blue);">ชื่อขั้นตอนเดิม:</label>
+                    <div id="displayOldStepName" style="font-weight: 700; color: #f8fafc; font-size: 14px; margin-top: 4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label style="color: var(--accent-blue);">ชื่อขั้นตอนใหม่:</label>
+                    <input type="text" id="newStepNameField" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; outline: none;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeRenameStepModal()">ยกเลิก</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmRenameStep()">บันทึกชื่อใหม่</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editCycleModal">
+        <div class="modal-card">
+            <div class="modal-title">✏️ แก้ไขข้อมูลรอบเวลา</div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <input type="hidden" id="editCycleNo">
+                
+                <div class="form-group">
+                    <label style="color: var(--accent-blue);">ขั้นตอนการทำงาน (Work Step)</label>
+                    <select id="editCycleStepSelect" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-group" style="flex: 1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label style="color: var(--accent-blue); margin:0;">เวลาเริ่ม (Start Time - sec)</label>
+                            <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleStart')" style="background:#0284c7; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
+                        </div>
+                        <input type="number" id="editCycleStart" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label style="color: var(--accent-blue); margin:0;">เวลาจบ (End Time - sec)</label>
+                            <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleEnd')" style="background:#0284c7; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
+                        </div>
+                        <input type="number" id="editCycleEnd" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label style="color: var(--accent-green);">ระยะเวลารอบ (Duration - sec)</label>
+                    <input type="number" id="editCycleDuration" step="0.01" min="0" readonly style="width: 100%; background-color: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); color: var(--accent-green); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; font-weight: bold;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="color: var(--accent-blue);">บันทึกเพิ่มเติม (Note)</label>
+                    <input type="text" id="editCycleNote" placeholder="รายละเอียดรอบเวลา..." style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <div>
+                    <!-- 2. กดเล่นจุดเริ่ม-จุดจบเฉพาะรอบนี้ -->
+                    <button type="button" class="modal-btn" onclick="previewCurrentModalSegment()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white;" title="เล่นวิดีโอเฉพาะช่วงเวลานี้">
+                        ▶️ เล่นช่วงนี้ (จุดเริ่ม-จุดจบ)
+                    </button>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="modal-btn modal-btn-cancel" onclick="closeEditCycleModal()">ยกเลิก</button>
+                    <button class="modal-btn" style="background-color: var(--accent-green); color: white;" onclick="saveCycleEdit()">บันทึกการแก้ไข</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- EXPORT & SWCT GRAPH SETTINGS MODAL         -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal-card" style="max-width: 520px;">
+            <div class="modal-title" style="color: #38bdf8; display: flex; align-items: center; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 8px;">💾 บันทึกและส่งออกข้อมูล (Export to Excel)</span>
+                <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: normal;">3 ชีทครบสมบูรณ์</span>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px;">
+                    ระบบจะสร้างไฟล์ Excel ตรงตามแบบฟอร์ม Time.xlsx 100% พร้อมตาราง TIME MEASUREMENT, ตารางงานมาตรฐาน SWCT พร้อมกราฟแท่ง และประวัติ Raw Data Log
+                </p>
+
+                <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 14px;">
+                    <label style="display: block; font-size: 13px; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">
+                        📈 เกณฑ์การดึงเวลาไปพล็อตกราฟ SWCT (Standard Work):
+                    </label>
+                    <select id="modalSwctModeSelect" onchange="handleModalSwctModeChange(this.value)" style="width: 100%; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 600; cursor: pointer; outline: none;">
+                        <option value="min" selected>⚡ เวลาน้อยที่สุดของแต่ละขั้นตอน (Min Time - แนะนำตามหลัก Lean/TPS)</option>
+                        <option value="avg">📊 เวลาเฉลี่ยของแต่ละขั้นตอน (Average Time)</option>
+                        <option value="max">🔴 เวลามากที่สุดของแต่ละขั้นตอน (Max Time - Worst Case)</option>
+                        <option value="best_round">🏆 รอบที่เวลารวมน้อยที่สุด (Best Total Round)</option>
+                        <option value="worst_round">⏳ รอบที่เวลารวมมากที่สุด (Worst Total Round)</option>
+                    </select>
+
+                    <div id="exportPreviewBox" style="margin-top: 12px; padding: 10px 12px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.35); border-radius: 8px; font-size: 12px; color: #cbd5e1;">
+                        <!-- Live preview populated dynamically -->
+                    </div>
+                </div>
+
+                <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.5; background: rgba(30, 41, 59, 0.5); padding: 8px 12px; border-radius: 6px;">
+                    💡 <b>ระบบปรับสเกลแกนเวลากราฟอัตโนมัติ:</b> กราฟ SWCT จะคำนวณช่วงเวลาสูงสุดให้สอดคล้องกับ CYCLE TIME จริงอัตโนมัติ (เช่น 135.84s จะขยายแกนเวลาเป็น 160s) ป้องกันกราฟล้นหรือถูกตัดที่ 120 วิ อีกต่อไป
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end; gap: 10px;">
+                <button type="button" class="modal-btn modal-btn-cancel" onclick="closeExportModal()">ยกเลิก</button>
+                <button type="button" class="modal-btn" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; font-weight: 700; border: 1px solid #38bdf8; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);" onclick="confirmExportSessionToExcel()">
+                    📥 ส่งออกไฟล์ Excel (.xlsx)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT: SESSION LOGIC & CAPTURE ENGINE -->
+    <!-- ========================================== -->
+    <script>
+        // Helper: Sanitize string for HTML embedding (Prevent XSS)
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Global variables mimicking Python's 'state' dictionary
+        const state = {
+            paused: true,
+            startTime: null,
+            cycleNo: 1,
+            sessionCycleCount: 0,
+            savedHistory: [],
+            recordedCycles: [],
+            deletedCyclesHistory: [],   // สำหรับฟังก์ชัน Undo การลบ
+            videoFile: null,
+            videoUrl: null,
+            uniqueSteps: [],           // รายการขั้นตอนงานที่ไม่ซ้ำกัน
+            reviewSegment: null,
+            importedCyclesFromExcel: null,
+            importedUniqueSteps: null,
+            swctPlotMode: 'min'         // 'min' (ค่าเริ่มต้น), 'avg', 'max', 'best_round', 'worst_round'
+        };
+
+        let employeeName = "Employee 1";
+        let workStepName = "";
+
+        // ฟังก์ชันช่วยแสดงชื่อขั้นตอนพร้อมลำดับ เช่น "1. หยิบชิ้นงานที่1"
+        function getStepDisplayLabel(stepName) {
+            if (!stepName) return "-";
+            const idx = state.uniqueSteps.indexOf(stepName);
+            if (idx !== -1) {
+                if (/^\d+[\.\s]/.test(stepName)) {
+                    return stepName;
+                }
+                return `${idx + 1}. ${stepName}`;
+            }
+            return stepName;
+        }
+
+        // DOM Element Cache
+        const timeVideo = document.getElementById('timeVideo');
+        const timelineProgress = document.getElementById('timelineProgress');
+        const hudTimeText = document.getElementById('hudTimeText');
+        const hudRecordedText = document.getElementById('hudRecordedText');
+        const hudEmployeeVal = document.getElementById('hudEmployeeVal');
+        const hudWorkStepVal = document.getElementById('hudWorkStepVal');
+        const hudStartVal = document.getElementById('hudStartVal');
+        const hudCurrentCycleVal = document.getElementById('hudCurrentCycleVal');
+        const cycleListContainer = document.getElementById('cycleListContainer');
+        const cycleBadgeCount = document.getElementById('cycleBadgeCount');
+        const btnPlayPause = document.getElementById('btnPlayPause');
+        const btnAction = document.getElementById('btnAction');
+
+        // ==========================================
+        // TEMPLATE-BASED MASTER CYCLE ENGINE STATE
+        // ==========================================
+        const cycleTemplate = {
+            locked: false,
+            elements: [],          // array of { step: "หยิบผ้า", duration: 3.2 }
+            totalDuration: 0,
+            activeRunner: false,
+            currentElementIdx: 0,
+            elementStartTime: null
+        };
+
+        // 1. ล็อคขั้นตอนที่บันทึกไว้ในรอบแรกเป็นแม่แบบ (Master Template)
+        
+        // ==========================================
+        // PYTHON BACKEND INTEGRATION
+        // ==========================================
+        async function requestPythonAutoTrack() {
+            if (state.recordedCycles.length === 0) {
+                if (!confirm("ยังไม่ได้จับเวลาขั้นตอนในรอบที่ 1\nคุณต้องการให้ Python วิเคราะห์ขั้นตอนตามแม่แบบมาตรฐานโดยอัตโนมัติเลยใช่หรือไม่?")) {
+                    return;
+                }
+            }
+
+            const btn = document.getElementById('btnPythonAutoTrack');
+            const originalText = btn ? btn.innerHTML : "";
+            if (btn) {
+                btn.innerHTML = "⏳ กำลังวิเคราะห์วิดีโอด้วย Python...";
+                btn.disabled = true;
+            }
+
+            try {
+                const videoFileName = state.videoFile ? state.videoFile.name : "ขั้นตอน 9.mov";
+                
+                // คัดกรองรอบที่ 1 ที่ผู้ใช้จับไว้ (ถ้ามี)
+                const firstRoundCycles = state.recordedCycles.filter(c => (c.cycleRound || 1) === 1);
+
+                const response = await fetch('http://localhost:8000/api/analyze_cycles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_name: videoFileName,
+                        first_round_cycles: firstRoundCycles
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                if (result.success && result.cycles && result.cycles.length > 0) {
+                    // แทนที่หรือต่อเติมรอบเวลาในตาราง
+                    state.recordedCycles = result.cycles;
+                    state.sessionCycleCount = state.recordedCycles.length;
+                    state.cycleNo = state.sessionCycleCount + 1;
+
+                    // สกัด Unique Steps
+                    const stepSet = new Set();
+                    state.recordedCycles.forEach(c => stepSet.add(c.step));
+                    state.uniqueSteps = Array.from(stepSet);
+
+                    updateStepSelectDropdown();
+                    renderCycleList();
+
+                    cycleBadgeCount.textContent = state.sessionCycleCount;
+                    hudRecordedText.textContent = `Recorded: ${state.sessionCycleCount} times`;
+
+                    alert(`🎉 Python วิเคราะห์สำเร็จเรียบร้อย!\nได้ข้อมูลทั้งหมด ${state.sessionCycleCount} ขั้นตอน\nคุณสามารถกดปุ่ม ▶️ บนการ์ดเพื่อตรวจดูแต่ละรอบ หรือกด Export Excel ได้เลยครับ`);
+                } else {
+                    alert("ไม่สามารถวิเคราะห์รอบเวลาได้: " + (result.error || "ไม่พบข้อมูล"));
+                }
+            } catch (err) {
+                console.error("Failed to connect to Python backend:", err);
+                alert("⚠️ ไม่สามารถเชื่อมต่อกับ Python Server ได้\n\nวิธีแก้ไข: กรุณาเปิด Terminal และรันคำสั่ง:\npython app_server.py\nจากนั้นลองกดใหม่อีกครั้งครับ");
+            } finally {
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        function lockCurrentCycleAsTemplate() {
+            if (state.recordedCycles.length === 0) {
+                alert("ยังไม่มีขั้นตอนที่ถูกบันทึก! กรุณาจับเวลาขั้นตอนรอบแรกด้วยมือ (Spacebar) อย่างน้อย 1 ขั้นตอนก่อนครับ");
+                return;
+            }
+
+            // นำรายการขั้นตอนที่จับได้ในรอบแรกมาสร้างเป็น Master Sequence
+            const elements = state.recordedCycles.map(c => ({
+                step: c.step,
+                duration: c.duration
+            }));
+
+            const totalDur = elements.reduce((acc, curr) => acc + curr.duration, 0);
+
+            cycleTemplate.locked = true;
+            cycleTemplate.elements = elements;
+            cycleTemplate.totalDuration = totalDur;
+            cycleTemplate.currentElementIdx = 0;
+            cycleTemplate.elementStartTime = null;
+
+            // อัปเดต UI
+            const statusText = document.getElementById('templateStatusText');
+            const btnLock = document.getElementById('btnLockTemplate');
+            const btnStart = document.getElementById('btnStartAiFromTemplate');
+            const btnReset = document.getElementById('btnResetTemplate');
+
+            const stepsSummary = elements.map((el, i) => `${i+1}.${el.step} (${el.duration.toFixed(1)}s)`).join(' ➔ ');
+            if (statusText) statusText.innerHTML = `✅ <strong>ล็อคแม่แบบแล้ว (${elements.length} ขั้นตอน, รวม ${totalDur.toFixed(1)}s):</strong> <span style="color:#38bdf8;">${stepsSummary}</span>`;
+
+            if (btnLock) btnLock.style.display = 'none';
+            if (btnStart) btnStart.style.display = 'flex';
+            if (btnReset) btnReset.style.display = 'inline-block';
+
+            alert(`📌 ล็อครอบแม่แบบสำเร็จ (${elements.length} ขั้นตอน)!\n\nขั้นตอนที่บันทึกไว้:\n${elements.map((el, i) => `${i+1}. ${el.step}: ${el.duration.toFixed(2)} วินาที`).join('\n')}\n\nเมื่อพร้อม ให้กดปุ่ม "🚀 เริ่มจับตามรอบแม่แบบ" เพื่อให้ระบบจับเวลาและเปลี่ยนขั้นตอนรอบต่อไปอัตโนมัติ`);
+        }
+
+        // 2. สลับเริ่ม/หยุดการจับตามแม่แบบอัตโนมัติ
+        function toggleTemplateAiRunner() {
+            if (!cycleTemplate.locked || cycleTemplate.elements.length === 0) {
+                alert("กรุณาล็อครอบแม่แบบก่อนครับ");
+                return;
+            }
+
+            cycleTemplate.activeRunner = !cycleTemplate.activeRunner;
+            const btnStart = document.getElementById('btnStartAiFromTemplate');
+
+            if (cycleTemplate.activeRunner) {
+                if (btnStart) {
+                    btnStart.textContent = "⏹️ หยุดจับตามแม่แบบ";
+                    btnStart.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+                }
+                cycleTemplate.currentElementIdx = 0;
+                cycleTemplate.elementStartTime = timeVideo.currentTime;
+
+                // กำหนดขั้นตอนแรกตามแม่แบบ
+                workStepName = cycleTemplate.elements[0].step;
+                hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+                const stepSelect = document.getElementById('stepSelect');
+                if (stepSelect) stepSelect.value = workStepName;
+
+                // เริ่มจับเวลา element ตัวแรก
+                state.startTime = timeVideo.currentTime;
+                btnAction.textContent = "SAVE CYCLE";
+                btnAction.classList.add('active-capture');
+                hudStartVal.style.display = 'block';
+                hudStartVal.textContent = `START: ${timeVideo.currentTime.toFixed(2)} sec`;
+                hudCurrentCycleVal.style.display = 'block';
+
+                safePlayVideo();
+            } else {
+                if (btnStart) {
+                    btnStart.textContent = "🚀 เริ่มจับตามรอบแม่แบบ";
+                    btnStart.style.background = "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)";
+                }
+            }
+        }
+
+        // 3. รีเซ็ตแม่แบบกลับสู่สภาวะเริ่มต้น
+        function resetCycleTemplate() {
+            if (!confirm("คุณต้องการล้างรอบแม่แบบเพื่อตั้งค่าใหม่ใช่หรือไม่?")) return;
+
+            cycleTemplate.locked = false;
+            cycleTemplate.elements = [];
+            cycleTemplate.totalDuration = 0;
+            cycleTemplate.activeRunner = false;
+            cycleTemplate.currentElementIdx = 0;
+            cycleTemplate.elementStartTime = null;
+
+            const statusText = document.getElementById('templateStatusText');
+            if (statusText) statusText.textContent = "รอบที่ 1: ให้ผู้ใช้จับเวลาขั้นตอนต่างๆ ด้วยมือ (Spacebar) แล้วกดปุ่มล็อครอบแม่แบบ";
+            const btnLock = document.getElementById('btnLockTemplate');
+            if (btnLock) btnLock.style.display = 'flex';
+            const btnStart = document.getElementById('btnStartAiFromTemplate');
+            if (btnStart) {
+                btnStart.style.display = 'none';
+                btnStart.textContent = "🚀 เริ่มจับตามรอบแม่แบบ";
+                btnStart.style.background = "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)";
+            }
+            const btnReset = document.getElementById('btnResetTemplate');
+            if (btnReset) btnReset.style.display = 'none';
+        }
+
+        // 4. ตรวจจับการเปลี่ยนผ่านขั้นตอนตามแม่แบบในแต่ละเฟรม
+        function processTemplateTransition(videoTime) {
+            if (!cycleTemplate.activeRunner || cycleTemplate.elements.length === 0) return;
+
+            const currentIdx = cycleTemplate.currentElementIdx;
+            const targetEl = cycleTemplate.elements[currentIdx];
+            if (!targetEl) return;
+
+            if (state.startTime === null) {
+                state.startTime = videoTime;
+                return;
+            }
+
+            const elapsed = videoTime - state.startTime;
+
+            // เมื่อเวลาเดินครบตาม Duration ของ Element ในแม่แบบ
+            if (elapsed >= targetEl.duration) {
+                // บันทึกขั้นตอนปัจจุบันลงตาราง
+                const note = `รอบแม่แบบ #${currentIdx + 1} (${targetEl.step})`;
+                recordNewCycle(state.startTime, videoTime, elapsed, note);
+
+                // สลับไปยังขั้นตอนถัดไปในแม่แบบ (วนซ้ำแบบ Cyclic: 1 -> 2 -> ... -> กลับมา 1)
+                const nextIdx = (currentIdx + 1) % cycleTemplate.elements.length;
+                cycleTemplate.currentElementIdx = nextIdx;
+                const nextEl = cycleTemplate.elements[nextIdx];
+
+                workStepName = nextEl.step;
+                hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+                const stepSelect = document.getElementById('stepSelect');
+                if (stepSelect) stepSelect.value = workStepName;
+
+                // เริ่มจับเวลาขั้นตอนใหม่ต่อเนื่องทันที
+                state.startTime = videoTime;
+                hudStartVal.textContent = `START: ${videoTime.toFixed(2)} sec`;
+            }
+        }
+
+        // Helper: Safe video play with catch for browser autoplay restrictions
+        function safePlayVideo() {
+            const playPromise = timeVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.warn("Video playback was prevented or interrupted:", err);
+                });
+            }
+        }
+
+        // Video event listeners bound ONCE globally to prevent listener stacking
+        timeVideo.addEventListener('loadedmetadata', () => {
+            updateProgressHUD();
+        });
+
+        timeVideo.addEventListener('play', () => {
+            state.paused = false;
+            btnPlayPause.textContent = "PAUSE";
+            btnPlayPause.style.backgroundColor = "#ef4444"; // Red when playing
+        });
+
+        timeVideo.addEventListener('pause', () => {
+            state.paused = true;
+            btnPlayPause.textContent = "PLAY";
+            btnPlayPause.style.backgroundColor = "var(--accent-orange)"; // Orange when paused
+        });
+
+        let hudLoopRunning = false;
+        function ensureHUDLoop() {
+            if (!hudLoopRunning) {
+                hudLoopRunning = true;
+                requestAnimationFrame(tickHUDLoop);
+            }
+        }
+
+        // Handles Video selection and updates setup screen UI
+        function handleVideoSelect(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                state.videoFile = file;
+                
+                // Release old object URL if exists
+                if (state.videoUrl) {
+                    URL.revokeObjectURL(state.videoUrl);
+                }
+                
+                state.videoUrl = URL.createObjectURL(file);
+                
+                // Update text display
+                const fileDummy = document.getElementById('fileDummy');
+                const fileNameText = document.getElementById('fileNameText');
+                fileNameText.textContent = file.name;
+                fileDummy.classList.add('has-file');
+                
+                // Inject video source
+                timeVideo.src = state.videoUrl;
+                timeVideo.load();
+            }
+        }
+
+        // เมื่อพิมพ์ชื่อพนักงานใหม่ในแดชบอร์ด
+        function handleEmployeeInput(input) {
+            employeeName = input.value.trim() || "Employee 1";
+            hudEmployeeVal.textContent = employeeName;
+        }
+
+        // เมื่อเลือกขั้นตอนเดิมที่มีอยู่จาก Dropdown
+        function handleStepSelectChange(select) {
+            workStepName = select.value;
+            hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+            
+            const idx = state.uniqueSteps.indexOf(workStepName);
+            if (idx !== -1) {
+                autoSequence.currentIndex = idx;
+            }
+            renderSequenceChips();
+            
+            // ล้างช่องกรอกอันใหม่ เพื่อแสดงว่าเลือกอันเดิมอยู่
+            document.getElementById('newStepInput').value = "";
+        }
+
+        // เมื่อพิมพ์ขั้นตอนใหม่ (ไม่สลับขั้นตอนทันทีจนกว่าจะกด + หรือกดเริ่มรอบ เพื่อป้องกันค่าที่พิมพ์ไม่เสร็จ)
+        function handleNewStepInput(input) {
+            // ไม่ overwrite workStepName ทันทีขณะพิมพ์
+        }
+
+        // ฟังก์ชันสำหรับเพิ่มขั้นตอนใหม่โดยตรงและเลือกทันที
+        function addNewStepDirectly() {
+            const input = document.getElementById('newStepInput');
+            const val = input.value.trim();
+            if (val) {
+                if (!state.uniqueSteps.includes(val)) {
+                    state.uniqueSteps.push(val);
+                }
+                workStepName = val;
+                hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+                
+                autoSequence.currentIndex = state.uniqueSteps.indexOf(val);
+                
+                // อัปเดต dropdown
+                updateStepSelectDropdown();
+                
+                // ล้างค่าในช่องกรอก
+                input.value = "";
+                
+                // อัปเดต dropdown ในแถบประวัติด้านขวา
+                renderCycleList();
+            }
+        }
+
+        // ฟังก์ชันรับแป้นพิมพ์ Enter เพื่อแอดขั้นตอนทันที
+        function handleNewStepKeydown(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addNewStepDirectly();
+            }
+        }
+
+        // อัปเดตเมนูตัวเลือกใน Dropdown
+        function updateStepSelectDropdown() {
+            const select = document.getElementById('stepSelect');
+            select.innerHTML = "";
+            if (state.uniqueSteps.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "-- ยังไม่มีขั้นตอน (เพิ่มใหม่ด้านขวา) --";
+                select.appendChild(opt);
+            } else {
+                state.uniqueSteps.forEach(step => {
+                    const opt = document.createElement('option');
+                    opt.value = step;
+                    opt.textContent = getStepDisplayLabel(step);
+                    select.appendChild(opt);
+                });
+            }
+            select.value = workStepName;
+            renderSequenceChips();
+            updateBatchActionBar();
+        }
+
+        // Initialize variables and switch from Setup (Phase 1) to Dashboard (Phase 2)
+        function startWorkstudySession() {
+            if (!state.videoFile) {
+                alert("กรุณาเลือกไฟล์วิดีโอก่อนที่จะดำเนินการ!");
+                return;
+            }
+
+            employeeName = document.getElementById('employeeInput').value.trim() || "Employee 1";
+            const initialStep = document.getElementById('workStepInput').value.trim();
+            workStepName = initialStep;
+
+            // ตั้งค่าตั้งต้นในอินพุตของแดชบอร์ด
+            document.getElementById('employeeSelectInput').value = employeeName;
+
+            // Load imported cycles if any, otherwise reset state
+            if (state.importedCyclesFromExcel && state.importedCyclesFromExcel.length > 0) {
+                state.recordedCycles = state.importedCyclesFromExcel;
+                state.sessionCycleCount = state.recordedCycles.length;
+                state.cycleNo = state.sessionCycleCount + 1;
+                state.uniqueSteps = state.importedUniqueSteps.filter(s => s && s.toLowerCase() !== 'assembly');
+                if (!workStepName && state.uniqueSteps.length > 0) {
+                    workStepName = state.uniqueSteps[0];
+                }
+
+                // Clear staging
+                state.importedCyclesFromExcel = null;
+                state.importedUniqueSteps = null;
+            } else {
+                state.recordedCycles = [];
+                state.sessionCycleCount = 0;
+                state.cycleNo = 1;
+                // ถ้ามีพิมพ์ขั้นตอนแรกไว้ ให้ใช้ขั้นตอนนี้ แต่ถ้าไม่มี ให้เริ่มเป็นว่างเปล่าเพื่อให้แตกขั้นตอนเอง
+                state.uniqueSteps = initialStep ? [initialStep] : [];
+                autoSequence.currentCycleRound = 1;
+                autoSequence.currentIndex = 0;
+            }
+
+            state.deletedCyclesHistory = [];
+            const btnUndo = document.getElementById('btnUndoDelete');
+            if (btnUndo) btnUndo.style.display = 'none';
+
+            updateStepSelectDropdown();
+
+            // Bind HUD elements
+            hudEmployeeVal.textContent = employeeName;
+            hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+            
+            // Switch View
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('dashboardScreen').style.display = 'grid';
+
+            // Render imported cycle list
+            renderCycleList();
+
+            // Update badge & recorded counts
+            cycleBadgeCount.textContent = state.sessionCycleCount;
+            hudRecordedText.textContent = `Recorded: ${state.sessionCycleCount} times`;
+
+            // Update HUD progress if metadata is already available
+            updateProgressHUD();
+
+            // Start HUD loop safely without duplicating
+            ensureHUDLoop();
+
+            // Play the first frame and freeze it (Start in Paused State)
+            timeVideo.currentTime = 0.01; // Tiny offset to draw first frame in some browsers
+            timeVideo.pause();
+        }
+
+        // Play/Pause button toggle
+        function togglePlayPause() {
+            if (timeVideo.paused) {
+                safePlayVideo();
+            } else {
+                timeVideo.pause();
+            }
+        }
+
+        // Action Trigger - mimicking standard spacebar (Start / End Cycle)
+        function triggerSessionCapture() {
+            state.reviewSegment = null; // Clear review mode on capture trigger
+
+            // ถ้าผู้ใช้พิมพ์ชื่อขั้นตอนใหม่ค้างไว้แต่ลืมกด + ให้เพิ่มและเลือกอัตโนมัติ
+            const newStepInputEl = document.getElementById('newStepInput');
+            if (newStepInputEl && newStepInputEl.value.trim()) {
+                addNewStepDirectly();
+            }
+
+            // ถ้ายังไม่มีขั้นตอนเลย และยังไม่ได้พิมพ์ขั้นตอน ให้ถามหรือแจ้งเตือน
+            if (!workStepName && state.uniqueSteps.length === 0) {
+                const promptStep = prompt("กรุณาระบุชื่อขั้นตอนการทำงานแรก (เช่น หยิบชิ้นงาน, เย็บ):");
+                if (promptStep && promptStep.trim()) {
+                    workStepName = promptStep.trim();
+                    state.uniqueSteps.push(workStepName);
+                    updateStepSelectDropdown();
+                } else {
+                    return; // ยกเลิกการจับถ้าไม่มีชื่อขั้นตอน
+                }
+            } else if (!workStepName && state.uniqueSteps.length > 0) {
+                workStepName = state.uniqueSteps[0];
+                hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+            }
+
+            const currentTimeSec = timeVideo.currentTime;
+
+            if (state.startTime === null) {
+                // START Capture
+                state.startTime = currentTimeSec;
+                safePlayVideo(); // Auto play video on start capturing!
+                
+                // Update Button
+                btnAction.textContent = "SAVE CYCLE";
+                btnAction.classList.add('active-capture');
+
+                // HUD Visibility
+                hudStartVal.style.display = 'block';
+                hudStartVal.textContent = `START: ${currentTimeSec.toFixed(2)} sec`;
+                hudCurrentCycleVal.style.display = 'block';
+            } else {
+                // SAVE / END Capture
+                const endTime = currentTimeSec;
+
+                // ตรวจสอบป้องกันเวลาติดลบ (กรณีเลื่อนย้อนวิดีโอกลับไปก่อนเวลาเริ่ม)
+                if (endTime <= state.startTime) {
+                    alert(`เวลาจบรอบ (${endTime.toFixed(2)}s) ต้องมากกว่าเวลาเริ่ม (${state.startTime.toFixed(2)}s)!\nกรุณาเลื่อนวิดีโอไปข้างหน้าเพื่อบันทึก หรือเริ่มรอบใหม่`);
+                    return;
+                }
+
+                const cycleTime = endTime - state.startTime;
+                timeVideo.pause(); // Standard mode pauses video on save!
+
+                // Add record to memory
+                let note = new Date().toLocaleString('th-TH');
+                recordNewCycle(state.startTime, endTime, cycleTime, note);
+
+                // Advance to next step in sequence automatically if enabled
+                advanceAutoSequence();
+
+                // Reset Action UI
+                btnAction.textContent = "START CYCLE";
+                btnAction.classList.remove('active-capture');
+                hudStartVal.style.display = 'none';
+                hudCurrentCycleVal.style.display = 'none';
+
+                state.startTime = null;
+            }
+        }
+
+        // Store new cycle in array and append item dynamically to Sidebar List
+        function recordNewCycle(start, end, duration, note) {
+            const cycleRecord = {
+                no: state.cycleNo,
+                cycleRound: autoSequence.currentCycleRound,
+                elementNo: autoSequence.currentIndex + 1,
+                employee: employeeName,
+                step: workStepName,
+                start: parseFloat(start.toFixed(2)),
+                end: parseFloat(end.toFixed(2)),
+                duration: parseFloat(duration.toFixed(2)),
+                note: note
+            };
+
+            state.recordedCycles.push(cycleRecord);
+            state.sessionCycleCount++;
+            updateAllCycleRounds();
+
+            // เพิ่มขั้นตอนใหม่ลงใน Dropdown ตัวเลือก (หากเป็นค่าใหม่ที่ไม่เคยบันทึก)
+            if (!state.uniqueSteps.includes(workStepName)) {
+                state.uniqueSteps.push(workStepName);
+                updateStepSelectDropdown();
+            }
+
+            // ล้างช่องป้อนชื่อขั้นตอนใหม่เพื่อเตรียมพร้อมสำหรับรอบต่อไป และล็อกให้ตรงกัน
+            document.getElementById('newStepInput').value = "";
+            document.getElementById('stepSelect').value = workStepName;
+
+            // แทนที่การ Append ด้วยการ re-render รายการทั้งหมด เพื่อให้ dropdown ทุกตัวมีค่าอัปเดตและแสดงผลถูกต้อง
+            renderCycleList();
+            
+            cycleBadgeCount.textContent = state.sessionCycleCount;
+            hudRecordedText.textContent = `Recorded: ${state.sessionCycleCount} times`;
+
+            state.cycleNo++;
+        }
+
+        // อัปเดตและเรนเดอร์รายการรอบเวลาที่ด้านข้าง
+        
+        // ==========================================
+        // AUTO SEQUENCE & BATCH SELECTION STATE
+        // ==========================================
+        const autoSequence = {
+            enabled: true,
+            currentIndex: 0,
+            currentCycleRound: 1  // นับรอบใหญ่ (Cycle Run/Loop): รอบที่ 1, รอบที่ 2, ...
+        };
+
+        const selectedCycleNos = new Set();
+        let activeQuickPopover = null;
+
+        // ปิด Quick Step Popover เมื่อคลิกภายนอก
+        window.addEventListener('click', (e) => {
+            if (activeQuickPopover && !e.target.closest('.sidebar-step-badge') && !e.target.closest('.quick-step-popover')) {
+                closeQuickStepPopover();
+            }
+        });
+
+        
+        // ฟังก์ชันลบขั้นตอนออกจากระบบ (และนำออกจาก Sequence)
+        function deleteStepFromSystem(stepToDelete) {
+            if (!confirm(`คุณต้องการลบขั้นตอน "${stepToDelete}" ออกจากรายการขั้นตอนใช่หรือไม่?`)) return;
+
+            state.uniqueSteps = state.uniqueSteps.filter(s => s !== stepToDelete);
+
+            // ถ้าขั้นตอนที่ลบตรงกับขั้นตอนปัจจุบัน ให้สลับไปตัวแรกที่มีอยู่
+            if (workStepName === stepToDelete) {
+                workStepName = state.uniqueSteps.length > 0 ? state.uniqueSteps[0] : "";
+                hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+            }
+
+            autoSequence.currentIndex = Math.max(0, state.uniqueSteps.indexOf(workStepName));
+
+            updateStepSelectDropdown();
+            renderCycleList();
+            renderSequenceChips();
+        }
+
+        function toggleAutoSequence(enabled) {
+            autoSequence.enabled = enabled;
+            renderSequenceChips();
+        }
+
+        function setSequenceStep(stepName) {
+            workStepName = stepName;
+            hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+            const stepSelect = document.getElementById('stepSelect');
+            if (stepSelect) stepSelect.value = workStepName;
+
+            const idx = state.uniqueSteps.indexOf(stepName);
+            if (idx !== -1) {
+                autoSequence.currentIndex = idx;
+            }
+            renderSequenceChips();
+        }
+
+        function advanceAutoSequence() {
+            if (!autoSequence.enabled || state.uniqueSteps.length <= 1) return;
+
+            // ตรวจสอบว่าขั้นตอนปัจจุบันอยู่ที่ตำแหน่งไหนใน uniqueSteps
+            const currentIdx = state.uniqueSteps.indexOf(workStepName);
+            let nextIndex = 0;
+            if (currentIdx !== -1) {
+                nextIndex = (currentIdx + 1) % state.uniqueSteps.length;
+                // ถ้าขั้นตอนถัดไปวนกลับมาที่ตัวแรกสุด (index 0) แปลว่าเริ่มชิ้นงานรอบใหม่!
+                if (nextIndex === 0) {
+                    autoSequence.currentCycleRound++;
+                }
+            }
+
+            autoSequence.currentIndex = nextIndex;
+            workStepName = state.uniqueSteps[nextIndex];
+            hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+
+            const stepSelect = document.getElementById('stepSelect');
+            if (stepSelect) stepSelect.value = workStepName;
+
+            renderSequenceChips();
+        }
+
+        // เรนเดอร์ชิปขั้นตอนในแถบ Auto Sequence
+        function renderSequenceChips() {
+            const container = document.getElementById('sequenceChipsRow');
+            if (!container) return;
+            container.innerHTML = "";
+
+            if (state.uniqueSteps.length === 0) {
+                container.innerHTML = '<span style="font-size:12px; color:var(--text-muted);">ยังไม่มีขั้นตอน (พิมพ์เพิ่มขั้นตอนเพื่อเริ่มต้น)</span>';
+                return;
+            }
+
+            // แสดง Badge รอบการผลิตปัจจุบัน (Cycle Round)
+            const roundBadge = document.createElement('div');
+            roundBadge.style.cssText = "background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(16,185,129,0.35);";
+            roundBadge.innerHTML = `🏁 ชิ้นที่/รอบที่: ${autoSequence.currentCycleRound}`;
+            roundBadge.title = "รอบการผลิตใหญ่ (จะเพิ่มเป็นรอบถัดไปอัตโนมัติเมื่อทำครบทุกขั้นตอน)";
+            container.appendChild(roundBadge);
+
+            state.uniqueSteps.forEach((step, idx) => {
+                const isActive = (step === workStepName);
+                const chip = document.createElement('div');
+                chip.className = `seq-chip ${isActive ? 'active-seq' : ''}`;
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = `${idx + 1}. ${step}`;
+                titleSpan.onclick = () => setSequenceStep(step);
+                chip.appendChild(titleSpan);
+
+                // ปุ่มแก้ไขชื่อขั้นตอน (✏️)
+                const editNameBtn = document.createElement('span');
+                editNameBtn.innerHTML = "✏️";
+                editNameBtn.title = `แก้ไขชื่อขั้นตอน "${step}"`;
+                editNameBtn.style.cssText = "margin-left: 5px; font-size: 11px; cursor: pointer; opacity: 0.7; padding: 0 2px;";
+                editNameBtn.onmouseover = () => editNameBtn.style.opacity = "1";
+                editNameBtn.onmouseout = () => editNameBtn.style.opacity = "0.7";
+                editNameBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    openRenameStepModal(step);
+                };
+                chip.appendChild(editNameBtn);
+
+                // ปุ่มลบขั้นตอนออกจาก Sequence (x)
+                const delBtn = document.createElement('span');
+                delBtn.innerHTML = "&times;";
+                delBtn.title = `ลบขั้นตอน "${step}" ออกจากระบบ`;
+                delBtn.style.cssText = "margin-left: 6px; font-weight: bold; cursor: pointer; opacity: 0.6; padding: 0 4px; border-radius: 4px;";
+                delBtn.onmouseover = () => delBtn.style.opacity = "1";
+                delBtn.onmouseout = () => delBtn.style.opacity = "0.6";
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteStepFromSystem(step);
+                };
+                chip.appendChild(delBtn);
+
+                chip.title = `คลิกเพื่อเลือก ${escapeHtml(step)} ทันที`;
+                container.appendChild(chip);
+
+                // Add arrow indicator between chips except the last one
+                if (idx < state.uniqueSteps.length - 1) {
+                    const arrow = document.createElement('span');
+                    arrow.style.color = 'var(--text-muted)';
+                    arrow.style.fontSize = '12px';
+                    arrow.textContent = '➔';
+                    container.appendChild(arrow);
+                }
+            });
+        }
+
+        // ==========================================
+        // QUICK STEP BADGE & POPOVER (แนวทางที่ 2)
+        // ==========================================
+        function openQuickStepPopover(cycleNo, event) {
+            event.stopPropagation();
+            closeQuickStepPopover();
+
+            const badgeBtn = event.currentTarget;
+            const rect = badgeBtn.getBoundingClientRect();
+
+            const popover = document.createElement('div');
+            popover.className = 'quick-step-popover';
+            popover.id = 'activeQuickPopover';
+
+            const cycle = state.recordedCycles.find(c => c.no === cycleNo);
+            const currentStep = cycle ? cycle.step : "";
+
+            state.uniqueSteps.forEach(step => {
+                const opt = document.createElement('button');
+                opt.type = 'button';
+                opt.className = `quick-step-option ${step === currentStep ? 'active' : ''}`;
+                opt.textContent = getStepDisplayLabel(step);
+                opt.onclick = (e) => {
+                    e.stopPropagation();
+                    changeCycleStepDirectly(cycleNo, step);
+                    closeQuickStepPopover();
+                };
+                popover.appendChild(opt);
+            });
+
+            document.body.appendChild(popover);
+
+            // คำนวณตำแหน่งแสดงผลให้พอดีหน้าจอ
+            let top = rect.bottom + window.scrollY + 4;
+            let left = rect.left + window.scrollX;
+            if (left + 220 > window.innerWidth) {
+                left = window.innerWidth - 230;
+            }
+            // ป้องกันป๊อปอัพล้นขอบจอด้านล่าง ให้แสดงขึ้นด้านบนแทน
+            const popoverHeight = Math.min(260, state.uniqueSteps.length * 36 + 16);
+            if (rect.bottom + popoverHeight > window.innerHeight && rect.top > popoverHeight) {
+                top = rect.top + window.scrollY - popoverHeight - 4;
+            }
+
+            popover.style.top = `${top}px`;
+            popover.style.left = `${left}px`;
+            activeQuickPopover = popover;
+        }
+
+        function closeQuickStepPopover() {
+            if (activeQuickPopover) {
+                activeQuickPopover.remove();
+                activeQuickPopover = null;
+            }
+        }
+
+        function changeCycleStepDirectly(cycleNo, newStep) {
+            const cycle = state.recordedCycles.find(c => c.no === cycleNo);
+            if (cycle) {
+                cycle.step = newStep;
+                updateAllCycleRounds();
+                renderCycleList();
+                if (currentSidebarView === 'matrix') {
+                    renderCycleMatrix();
+                }
+            }
+        }
+
+        // ==========================================
+        // BATCH SELECTION & EDIT (แนวทางที่ 1)
+        // ==========================================
+        function toggleCycleSelection(cycleNo, isChecked) {
+            if (isChecked) {
+                selectedCycleNos.add(cycleNo);
+            } else {
+                selectedCycleNos.delete(cycleNo);
+            }
+            updateBatchActionBar();
+        }
+
+        function toggleSelectAllCycles(isChecked) {
+            selectedCycleNos.clear();
+            if (isChecked) {
+                state.recordedCycles.forEach(c => selectedCycleNos.add(c.no));
+            }
+            renderCycleList();
+            updateBatchActionBar();
+        }
+
+        function updateBatchActionBar() {
+            const bar = document.getElementById('batchActionBar');
+            const countText = document.getElementById('batchCountText');
+            const selectAllBox = document.getElementById('selectAllCheckbox');
+            const batchSelect = document.getElementById('batchStepSelect');
+
+            if (selectedCycleNos.size > 0) {
+                bar.style.display = 'flex';
+                countText.textContent = `เลือกไว้ ${selectedCycleNos.size} รายการ`;
+
+                // Update batch options
+                batchSelect.innerHTML = "";
+                state.uniqueSteps.forEach(step => {
+                    const opt = document.createElement('option');
+                    opt.value = step;
+                    opt.textContent = getStepDisplayLabel(step);
+                    batchSelect.appendChild(opt);
+                });
+
+                if (selectAllBox) {
+                    selectAllBox.checked = (selectedCycleNos.size === state.recordedCycles.length && state.recordedCycles.length > 0);
+                }
+            } else {
+                bar.style.display = 'none';
+                if (selectAllBox) selectAllBox.checked = false;
+            }
+        }
+
+        function applyBatchStepChange() {
+            const newStep = document.getElementById('batchStepSelect').value;
+            if (!newStep || selectedCycleNos.size === 0) return;
+
+            let updatedCount = 0;
+            state.recordedCycles.forEach(c => {
+                if (selectedCycleNos.has(c.no)) {
+                    c.step = newStep;
+                    updatedCount++;
+                }
+            });
+
+            selectedCycleNos.clear();
+            updateAllCycleRounds();
+            renderCycleList();
+            updateBatchActionBar();
+            if (currentSidebarView === 'matrix') {
+                renderCycleMatrix();
+            }
+        }
+
+        function deleteSelectedCycles() {
+            if (selectedCycleNos.size === 0) return;
+            if (!confirm(`คุณต้องการลบข้อมูลรอบที่เลือกทั้ง ${selectedCycleNos.size} รายการใช่หรือไม่?`)) return;
+
+            // บันทึกลง Undo Stack
+            const itemsToDelete = state.recordedCycles.filter(c => selectedCycleNos.has(c.no));
+            itemsToDelete.forEach(item => {
+                state.deletedCyclesHistory.push({
+                    item: Object.assign({}, item),
+                    index: state.recordedCycles.indexOf(item)
+                });
+            });
+
+            const btnUndo = document.getElementById('btnUndoDelete');
+            if (btnUndo) btnUndo.style.display = 'inline-block';
+
+            state.recordedCycles = state.recordedCycles.filter(c => !selectedCycleNos.has(c.no));
+
+            // Renumber remaining cycles
+            state.recordedCycles.forEach((c, idx) => {
+                c.no = idx + 1;
+            });
+            
+            selectedCycleNos.clear();
+            updateAllCycleRounds();
+
+            state.sessionCycleCount = state.recordedCycles.length;
+            state.cycleNo = state.sessionCycleCount + 1;
+
+            renderCycleList();
+            updateBatchActionBar();
+            if (currentSidebarView === 'matrix') {
+                renderCycleMatrix();
+            }
+
+            cycleBadgeCount.textContent = state.sessionCycleCount;
+            hudRecordedText.textContent = `Recorded: ${state.sessionCycleCount} times`;
+        }
+
+        
+        // ==========================================
+        // 1. MUTE / UNMUTE VIDEO
+        // ==========================================
+        function toggleMuteVideo() {
+            timeVideo.muted = !timeVideo.muted;
+            const btn = document.getElementById('btnMuteToggle');
+            if (btn) {
+                btn.textContent = timeVideo.muted ? "🔇" : "🔊";
+                btn.style.background = timeVideo.muted ? "#ef4444" : "#334155";
+            }
+        }
+
+        // ==========================================
+        // 4. CHANGE PLAYBACK SPEED (เพิ่ม - ลด ได้ถึง 5.0x)
+        // ==========================================
+        const SPEED_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+
+        function changePlaybackSpeed(rate) {
+            const num = parseFloat(rate) || 1.0;
+            timeVideo.playbackRate = num;
+            const sel = document.getElementById('speedSelect');
+            if (sel) {
+                let matched = false;
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (Math.abs(parseFloat(sel.options[i].value) - num) < 0.01) {
+                        sel.selectedIndex = i;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    const opt = document.createElement('option');
+                    opt.value = num.toFixed(2);
+                    opt.textContent = num.toFixed(2) + 'x';
+                    sel.appendChild(opt);
+                    sel.value = opt.value;
+                }
+            }
+        }
+
+        function stepPlaybackSpeed(direction) {
+            const currentRate = timeVideo.playbackRate || 1.0;
+            let closestIdx = 3; // 1.0x
+            let minDiff = Infinity;
+            for (let i = 0; i < SPEED_STEPS.length; i++) {
+                const diff = Math.abs(SPEED_STEPS[i] - currentRate);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIdx = i;
+                }
+            }
+            let targetIdx;
+            if (direction > 0) {
+                targetIdx = Math.min(SPEED_STEPS.length - 1, closestIdx + 1);
+            } else {
+                targetIdx = Math.max(0, closestIdx - 1);
+            }
+            changePlaybackSpeed(SPEED_STEPS[targetIdx]);
+        }
+
+        // ==========================================
+        // 2. PREVIEW SEGMENT (จุดเริ่ม - จุดจบ)
+        // ==========================================
+        function previewCurrentModalSegment() {
+            const startVal = parseFloat(document.getElementById('editCycleStart').value) || 0;
+            const endVal = parseFloat(document.getElementById('editCycleEnd').value) || 0;
+            const cycleNo = parseInt(document.getElementById('editCycleNo').value) || 0;
+
+            if (endVal <= startVal) {
+                alert("เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้นครับ");
+                return;
+            }
+
+            state.reviewSegment = {
+                start: startVal,
+                end: endVal,
+                no: cycleNo
+            };
+
+            timeVideo.currentTime = startVal;
+            safePlayVideo();
+            updateProgressHUD();
+        }
+
+        // ==========================================
+        // 5. RENAME WORK STEP (แก้ไขชื่อขั้นตอน)
+        // ==========================================
+        function openRenameStepModal(stepName) {
+            document.getElementById('oldStepNameInput').value = stepName;
+            document.getElementById('displayOldStepName').textContent = stepName;
+            document.getElementById('newStepNameField').value = stepName;
+            document.getElementById('renameStepModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('newStepNameField').focus(), 100);
+        }
+
+        function closeRenameStepModal() {
+            document.getElementById('renameStepModal').style.display = 'none';
+        }
+
+        function confirmRenameStep() {
+            const oldName = document.getElementById('oldStepNameInput').value;
+            const newName = document.getElementById('newStepNameField').value.trim();
+
+            if (!newName) {
+                alert("กรุณากรอกชื่อขั้นตอนใหม่ครับ");
+                return;
+            }
+
+            if (oldName === newName) {
+                closeRenameStepModal();
+                return;
+            }
+
+            // 1. เปลี่ยนใน uniqueSteps
+            const idx = state.uniqueSteps.indexOf(oldName);
+            if (idx !== -1) {
+                state.uniqueSteps[idx] = newName;
+            }
+
+            // 2. เปลี่ยนใน recordedCycles ทั้งหมด
+            state.recordedCycles.forEach(c => {
+                if (c.step === oldName) {
+                    c.step = newName;
+                }
+            });
+
+            // 3. เปลี่ยน current workStepName ถ้าตรงกัน
+            if (workStepName === oldName) {
+                workStepName = newName;
+                hudWorkStepVal.textContent = getStepDisplayLabel(workStepName);
+            }
+
+            updateStepSelectDropdown();
+            renderCycleList();
+            renderSequenceChips();
+            closeRenameStepModal();
+        }
+
+        // ฟังก์ชันคำนวณลำดับรอบ (Cycle Round) ของทุกรายการอย่างถูกต้องตามรอบการผลิตจริง
+        function updateAllCycleRounds() {
+            state.recordedCycles.forEach(c => {
+                if (c.step && !state.uniqueSteps.includes(c.step)) {
+                    state.uniqueSteps.push(c.step);
+                }
+            });
+
+            let computedRound = 1;
+            let lastStepIdx = -1;
+            state.recordedCycles.forEach((c, idx) => {
+                const currentStepIdx = state.uniqueSteps.indexOf(c.step);
+                // ถ้ารอบนี้มี index ในขั้นตอนน้อยกว่าหรือเท่ากับขั้นตอนก่อนหน้า แสดงว่าเริ่มวนรอบผลิตใหม่
+                if (idx > 0 && currentStepIdx !== -1 && lastStepIdx !== -1 && currentStepIdx <= lastStepIdx) {
+                    computedRound++;
+                }
+                c.cycleRound = computedRound;
+                if (currentStepIdx !== -1) {
+                    lastStepIdx = currentStepIdx;
+                }
+            });
+
+            // ซิงค์ตัวนับรอบของ autoSequence กับรายการล่าสุด
+            if (state.recordedCycles.length > 0) {
+                const lastCycle = state.recordedCycles[state.recordedCycles.length - 1];
+                const lastIdx = state.uniqueSteps.indexOf(lastCycle.step);
+                if (lastIdx === state.uniqueSteps.length - 1) {
+                    autoSequence.currentCycleRound = (lastCycle.cycleRound || 1) + 1;
+                } else {
+                    autoSequence.currentCycleRound = lastCycle.cycleRound || 1;
+                }
+            } else {
+                autoSequence.currentCycleRound = 1;
+            }
+        }
+
+        // ฟังก์ชันสร้างเมทริกซ์ 2 มิติ (ขั้นตอน x รอบการผลิต) โดยอิงตาม cycleRound จริง
+        function buildCycleRoundMatrix() {
+            updateAllCycleRounds();
+
+            // ลำดับขั้นตอนยึดตาม state.uniqueSteps เป็นหลัก
+            const orderedSteps = [...state.uniqueSteps];
+            state.recordedCycles.forEach(c => {
+                if (c.step && !orderedSteps.includes(c.step)) {
+                    orderedSteps.push(c.step);
+                }
+            });
+
+            // คำนวณรอบสูงสุดที่มีการบันทึก (จำกัดที่ 10 รอบตามตารางมาตรฐาน)
+            let maxRound = 1;
+            state.recordedCycles.forEach(c => {
+                const r = c.cycleRound || 1;
+                if (r > maxRound) maxRound = r;
+            });
+            maxRound = Math.min(10, Math.max(1, maxRound));
+
+            // สร้าง Matrix: stepMatrix[step][roundNum] = duration
+            const stepMatrix = {};
+            orderedSteps.forEach(s => {
+                stepMatrix[s] = {};
+            });
+
+            state.recordedCycles.forEach(c => {
+                const r = c.cycleRound || 1;
+                if (r <= 10 && stepMatrix[c.step]) {
+                    // หากขั้นตอนเดียวกันถูกบันทึกซ้ำในรอบเดิม ให้บวกเวลารวมเข้าด้วยกัน
+                    stepMatrix[c.step][r] = (stepMatrix[c.step][r] || 0) + c.duration;
+                }
+            });
+
+            return { orderedSteps, maxRound, stepMatrix };
+        }
+
+        function renderCycleList() {
+            cycleListContainer.innerHTML = "";
+            
+            // คำนวณลำดับรอบ (cycleRound) ให้ทุกรายการตั้งแต่เริ่มตามรอบจริง
+            updateAllCycleRounds();
+
+            // แสดงรายการจากล่าสุดไปเก่าสุด
+            for (let i = state.recordedCycles.length - 1; i >= 0; i--) {
+                const c = state.recordedCycles[i];
+                
+                const isSelected = selectedCycleNos.has(c.no);
+                const itemHtml = `
+                    <div class="cycle-item" style="${isSelected ? 'border-color: #38bdf8; background: rgba(14, 165, 233, 0.12);' : ''}">
+                        <label class="cycle-checkbox-wrap" title="เลือกเพื่อแก้ไขพร้อมกัน">
+                            <input type="checkbox" class="cycle-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCycleSelection(${c.no}, this.checked)">
+                        </label>
+                        <div class="cycle-item-left" style="flex-grow: 1; margin-right: 10px;">
+                            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;">
+                                <span class="cycle-item-no">รายการที่ ${c.no}</span>
+                                <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px;" title="รอบการผลิตใหญ่">
+                                    รอบที่ ${c.cycleRound || 1}
+                                </span>
+                                <button type="button" class="sidebar-step-badge" onclick="openQuickStepPopover(${c.no}, event)" title="คลิกเพื่อเลือกหรือสลับขั้นตอน">
+                                    🏷️ ${escapeHtml(getStepDisplayLabel(c.step))} ▾
+                                </button>
+                            </div>
+                            <span class="cycle-item-type">เริ่ม: ${c.start.toFixed(2)}s | จบ: ${c.end.toFixed(2)}s</span>
+                            ${c.note ? `<span class="cycle-item-note" style="display:block; font-size:11px; color:var(--text-muted); margin-top:2px;">โน้ต: ${escapeHtml(c.note)}</span>` : ''}
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0;">
+                            <div class="cycle-item-duration">${c.duration.toFixed(2)}s</div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="cycle-action-btn play-item-btn" onclick="playCycleSegment(${c.no})" title="เล่นรอบนี้">▶️</button>
+                                <button class="cycle-action-btn edit-btn" onclick="openEditCycleModal(${c.no})" title="แก้ไขรอบนี้">✏️</button>
+                                <button class="cycle-action-btn delete-btn" onclick="deleteCycleItem(${c.no})" title="ลบรอบนี้">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                cycleListContainer.insertAdjacentHTML('beforeend', itemHtml);
+            }
+            renderCycleMatrix();
+        }
+
+        let currentSidebarView = 'list';
+        function switchSidebarView(mode) {
+            currentSidebarView = mode;
+            const btnList = document.getElementById('tabBtnList');
+            const btnMatrix = document.getElementById('tabBtnMatrix');
+            const listContainer = document.getElementById('cycleListContainer');
+            const matrixContainer = document.getElementById('cycleMatrixContainer');
+            const selectAllWrap = document.getElementById('selectAllWrap');
+            const batchBar = document.getElementById('batchActionBar');
+
+            if (mode === 'matrix') {
+                btnList.classList.remove('active');
+                btnMatrix.classList.add('active');
+                listContainer.style.display = 'none';
+                matrixContainer.style.display = 'block';
+                if (selectAllWrap) selectAllWrap.style.display = 'none';
+                if (batchBar) batchBar.style.display = 'none';
+                renderCycleMatrix();
+            } else {
+                btnMatrix.classList.remove('active');
+                btnList.classList.add('active');
+                matrixContainer.style.display = 'none';
+                listContainer.style.display = 'flex';
+                if (selectAllWrap) selectAllWrap.style.display = 'inline-flex';
+                updateBatchActionBar();
+            }
+        }
+
+        // ฟังก์ชันคำนวณหาค่าเวลาของแต่ละขั้นตอนสำหรับกราฟ SWCT ตามโหมดที่เลือก
+        function getSwctStepValues(orderedSteps, stepMatrix, maxRound, mode) {
+            const result = {};
+            let totalTime = 0;
+
+            const stepStats = {};
+            orderedSteps.forEach(s => {
+                const validDurs = [];
+                for (let r = 1; r <= maxRound; r++) {
+                    const v = stepMatrix[s][r];
+                    if (v !== undefined && v !== null) validDurs.push(v);
+                }
+                const minVal = validDurs.length > 0 ? Math.min(...validDurs) : 0;
+                const maxVal = validDurs.length > 0 ? Math.max(...validDurs) : 0;
+                const sumVal = validDurs.reduce((a, b) => a + b, 0);
+                const avgVal = validDurs.length > 0 ? (sumVal / validDurs.length) : 0;
+                stepStats[s] = { minVal, maxVal, avgVal, validDurs };
+            });
+
+            // คำนวณรอบที่ดีที่สุด (ผลรวมเวลาน้อยสุด) และรอบที่แย่ที่สุด
+            let bestRound = 1;
+            let worstRound = 1;
+            let minRoundTotal = Infinity;
+            let maxRoundTotal = -Infinity;
+
+            for (let r = 1; r <= maxRound; r++) {
+                let rTotal = 0;
+                let count = 0;
+                orderedSteps.forEach(s => {
+                    const v = stepMatrix[s][r];
+                    if (v !== undefined && v !== null) {
+                        rTotal += v;
+                        count++;
+                    }
+                });
+                if (count > 0 && rTotal < minRoundTotal) {
+                    minRoundTotal = rTotal;
+                    bestRound = r;
+                }
+                if (count > 0 && rTotal > maxRoundTotal) {
+                    maxRoundTotal = rTotal;
+                    worstRound = r;
+                }
+            }
+
+            orderedSteps.forEach(s => {
+                const stats = stepStats[s];
+                let val = stats.minVal;
+                if (mode === 'avg') {
+                    val = stats.avgVal;
+                } else if (mode === 'max') {
+                    val = stats.maxVal;
+                } else if (mode === 'best_round') {
+                    val = (stepMatrix[s][bestRound] !== undefined && stepMatrix[s][bestRound] !== null) ? stepMatrix[s][bestRound] : stats.minVal;
+                } else if (mode === 'worst_round') {
+                    val = (stepMatrix[s][worstRound] !== undefined && stepMatrix[s][worstRound] !== null) ? stepMatrix[s][worstRound] : stats.maxVal;
+                } else if (mode && mode.startsWith('round_')) {
+                    const targetR = parseInt(mode.replace('round_', ''));
+                    val = (stepMatrix[s][targetR] !== undefined && stepMatrix[s][targetR] !== null) ? stepMatrix[s][targetR] : stats.minVal;
+                } else {
+                    val = stats.minVal;
+                }
+                result[s] = val;
+                totalTime += val;
+            });
+
+            return { stepValues: result, totalTime, bestRound, worstRound, stepStats };
+        }
+
+        // ฟังก์ชันคำนวณสเกลแกนเวลาสูงสุด (maxAxis) และระยะแบ่งช่อง (majorUnit) อัตโนมัติ
+        function calculateChartAxis(targetTime) {
+            let buffer = Math.max(15, targetTime * 0.12);
+            let rawMax = targetTime + buffer;
+            let step = 10;
+            if (rawMax > 200) step = 20;
+            if (rawMax > 500) step = 50;
+            if (rawMax > 1000) step = 100;
+
+            let maxAxis = Math.ceil(rawMax / step) * step;
+            maxAxis = Math.max(60, maxAxis);
+
+            let majorUnit = 5;
+            if (maxAxis > 180) majorUnit = 10;
+            if (maxAxis > 400) majorUnit = 20;
+            if (maxAxis > 1000) majorUnit = 50;
+
+            return { maxAxis, majorUnit };
+        }
+
+        // Render Matrix Table (Excel Style: Steps x Rounds)
+        function renderCycleMatrix() {
+            const container = document.getElementById('cycleMatrixContainer');
+            if (!container) return;
+
+            if (state.recordedCycles.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;">ยังไม่มีข้อมูลรอบเวลา<br>จับเวลารอบแรกเพื่อแสดงตารางเปรียบเทียบ</div>`;
+                return;
+            }
+
+            const { orderedSteps, maxRound, stepMatrix } = buildCycleRoundMatrix();
+            const mode = state.swctPlotMode || 'min';
+            const { stepValues, totalTime } = getSwctStepValues(orderedSteps, stepMatrix, maxRound, mode);
+
+            let html = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: rgba(15, 23, 42, 0.7); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                    <span style="font-size: 11px; font-weight: 700; color: #38bdf8;">📈 เกณฑ์ทำกราฟ SWCT:</span>
+                    <select id="sidebarSwctModeSelect" onchange="handleSwctPlotModeChange(this.value)" style="background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; border-radius: 6px; padding: 2px 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                        <option value="min" ${mode === 'min' ? 'selected' : ''}>⚡ ต่ำสุด (Min Time)</option>
+                        <option value="avg" ${mode === 'avg' ? 'selected' : ''}>📊 เฉลี่ย (Average)</option>
+                        <option value="max" ${mode === 'max' ? 'selected' : ''}>🔴 สูงสุด (Max Time)</option>
+                        <option value="best_round" ${mode === 'best_round' ? 'selected' : ''}>🏆 รอบรวมน้อยสุด</option>
+                        <option value="worst_round" ${mode === 'worst_round' ? 'selected' : ''}>⏳ รอบรวมมากสุด</option>
+                    </select>
+                </div>
+                <table class="cycle-matrix-table">
+            `;
+
+            // Thead
+            html += `<thead><tr><th style="width:24px;">#</th><th>ขั้นตอน</th>`;
+            for (let r = 1; r <= maxRound; r++) {
+                html += `<th style="width:38px;">${r}</th>`;
+            }
+            html += `<th style="width:44px; color:#94a3b8;">เฉลี่ย</th>`;
+            html += `<th style="width:48px; color:#38bdf8; background:rgba(14,165,233,0.15);" title="ค่าเวลาที่จะนำไปพล็อตกราฟ SWCT ตามเกณฑ์ที่เลือก">กราฟ</th>`;
+            html += `</tr></thead><tbody>`;
+
+            const colTotals = new Array(maxRound + 1).fill(0);
+            let grandAvgSum = 0;
+
+            orderedSteps.forEach((s, idx) => {
+                const validDurs = [];
+                for (let r = 1; r <= maxRound; r++) {
+                    const val = stepMatrix[s][r];
+                    if (val !== undefined && val !== null) {
+                        validDurs.push(val);
+                    }
+                }
+                const sum = validDurs.reduce((a, b) => a + b, 0);
+                const avg = validDurs.length > 0 ? (sum / validDurs.length) : null;
+                if (avg !== null) grandAvgSum += avg;
+
+                html += `<tr>`;
+                html += `<td style="text-align:center; color:#94a3b8;">${idx + 1}</td>`;
+                html += `<td class="col-step" title="${escapeHtml(s)}">${escapeHtml(s)}</td>`;
+
+                for (let r = 1; r <= maxRound; r++) {
+                    const val = stepMatrix[s][r];
+                    if (val !== undefined && val !== null) {
+                        html += `<td>${val.toFixed(2)}</td>`;
+                        colTotals[r] += val;
+                    } else {
+                        html += `<td style="color:#475569;">-</td>`;
+                    }
+                }
+                html += `<td class="col-avg" style="color:#94a3b8;">${avg !== null ? avg.toFixed(2) : '-'}</td>`;
+                html += `<td style="color:#38bdf8; font-weight:700; background:rgba(14,165,233,0.1); text-align:center;">${stepValues[s] !== undefined ? stepValues[s].toFixed(2) : '-'}</td>`;
+                html += `</tr>`;
+            });
+
+            // Total row
+            html += `<tr class="row-total">`;
+            html += `<td colspan="2" style="text-align:center;">รวม (TOTAL)</td>`;
+            for (let r = 1; r <= maxRound; r++) {
+                html += `<td>${colTotals[r] > 0 ? colTotals[r].toFixed(2) : '-'}</td>`;
+            }
+            html += `<td style="color:#94a3b8;">${grandAvgSum.toFixed(2)}</td>`;
+            html += `<td style="color:#34d399; font-weight:700; background:rgba(14,165,233,0.2);">${totalTime.toFixed(2)}</td>`;
+            html += `</tr>`;
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function openExportModal() {
+            const modal = document.getElementById('exportModal');
+            if (!modal) {
+                exportSessionToExcel();
+                return;
+            }
+            const select = document.getElementById('modalSwctModeSelect');
+            if (select) {
+                select.value = state.swctPlotMode || 'min';
+            }
+            updateExportModalPreview();
+            modal.style.display = 'flex';
+        }
+
+        function closeExportModal() {
+            const modal = document.getElementById('exportModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function handleModalSwctModeChange(mode) {
+            state.swctPlotMode = mode;
+            const sidebarSelect = document.getElementById('sidebarSwctModeSelect');
+            if (sidebarSelect) sidebarSelect.value = mode;
+            updateExportModalPreview();
+            renderCycleMatrix();
+        }
+
+        function handleSwctPlotModeChange(mode) {
+            state.swctPlotMode = mode;
+            const modalSelect = document.getElementById('modalSwctModeSelect');
+            if (modalSelect) modalSelect.value = mode;
+            updateExportModalPreview();
+            renderCycleMatrix();
+        }
+
+        function updateExportModalPreview() {
+            const box = document.getElementById('exportPreviewBox');
+            if (!box || state.recordedCycles.length === 0) return;
+
+            const { orderedSteps, maxRound, stepMatrix } = buildCycleRoundMatrix();
+            const mode = state.swctPlotMode || 'min';
+            const { totalTime } = getSwctStepValues(orderedSteps, stepMatrix, maxRound, mode);
+            const { maxAxis, majorUnit } = calculateChartAxis(totalTime);
+
+            const modeLabels = {
+                'min': '⚡ เวลาที่น้อยที่สุด (Min Time - ตามหลัก Lean/TPS)',
+                'avg': '📊 เวลาเฉลี่ยของทุกรอบ (Average Time)',
+                'max': '🔴 เวลาที่มากที่สุด (Max Time - Worst Case)',
+                'best_round': '🏆 รอบที่เวลารวมน้อยที่สุด (Best Total Round)',
+                'worst_round': '⏳ รอบที่เวลารวมมากที่สุด (Worst Total Round)'
+            };
+            const label = modeLabels[mode] || mode;
+
+            box.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="color:#94a3b8;">เกณฑ์กราฟ:</span>
+                    <b style="color:#38bdf8;">${label}</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="color:#94a3b8;">CYCLE TIME รวม:</span>
+                    <b style="color:#34d399; font-size:13.5px;">${totalTime.toFixed(2)} วินาที</b>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#94a3b8;">สเกลแกนเวลากราฟ:</span>
+                    <b style="color:#fbbf24;">0 ถึง ${maxAxis} วินาที (ช่องละ ${majorUnit}s)</b>
+                </div>
+            `;
+        }
+
+        function confirmExportSessionToExcel() {
+            closeExportModal();
+            exportSessionToExcel();
+        }
+
+        // เมื่อเปลี่ยนขั้นตอนการทำงานของรอบที่บันทึกไปแล้วในแถบด้านข้าง
+        function handleSidebarStepChange(cycleNo, select) {
+            const newStep = select.value;
+            const cycle = state.recordedCycles.find(c => c.no === cycleNo);
+            if (cycle) {
+                cycle.step = newStep;
+            }
+        }
+
+        // high-resolution ticker loop checking playback metrics & auto cycle timing
+        function tickHUDLoop() {
+            if (document.getElementById('dashboardScreen').style.display === 'grid') {
+                updateProgressHUD();
+
+                // Live dynamic timer readout when capture is active (ป้องกันเวลาติดลบ)
+                if (state.startTime !== null) {
+                    const elapsed = Math.max(0, timeVideo.currentTime - state.startTime);
+                    hudCurrentCycleVal.textContent = `CURRENT CYCLE: ${elapsed.toFixed(2)} sec`;
+                }
+
+                // ==========================================
+                // TEMPLATE-BASED MASTER CYCLE RUNNER
+                // ==========================================
+                if (cycleTemplate.activeRunner && !timeVideo.paused) {
+                    processTemplateTransition(timeVideo.currentTime);
+                }
+
+                // ==========================================
+                // SEGMENT REVIEW PAUSE CHECK
+                // ==========================================
+                const hudReviewVal = document.getElementById('hudReviewVal');
+                if (state.reviewSegment) {
+                    hudReviewVal.style.display = 'block';
+                    hudReviewVal.textContent = `👁️ REVIEWING ROUND ${state.reviewSegment.no} (${state.reviewSegment.start.toFixed(2)}s - ${state.reviewSegment.end.toFixed(2)}s)`;
+                    
+                    if (!timeVideo.paused) {
+                        const current = timeVideo.currentTime;
+                        if (current >= state.reviewSegment.end) {
+                            timeVideo.pause();
+                            state.reviewSegment = null;
+                            hudReviewVal.style.display = 'none';
+                        }
+                    }
+                } else {
+                    hudReviewVal.style.display = 'none';
+                }
+
+                requestAnimationFrame(tickHUDLoop);
+            } else {
+                hudLoopRunning = false;
+            }
+        }
+
+        // Sync progress bar and HUD time readouts
+        function updateProgressHUD() {
+            const current = timeVideo.currentTime;
+            const duration = timeVideo.duration || 0;
+            
+            // HUD text
+            const curEl = document.getElementById('hudCurrentSec');
+            const totEl = document.getElementById('hudTotalSec');
+            if (curEl) curEl.textContent = current.toFixed(2);
+            if (totEl) totEl.textContent = duration.toFixed(2);
+            
+            // Timeline progress bar
+            if (duration > 0) {
+                const percent = (current / duration) * 100;
+                timelineProgress.style.width = `${percent}%`;
+            }
+        }
+
+        // คัดลอกเวลาปัจจุบันของวิดีโอ (Copy Time)
+        function copyCurrentVideoTime(event) {
+            if (event) event.stopPropagation();
+            const curSec = (timeVideo.currentTime || 0).toFixed(2);
+            navigator.clipboard.writeText(curSec).then(() => {
+                alert(`📋 คัดลอกเวลา ${curSec} วินาที เรียบร้อย!\nนำไปกด Ctrl+V หรือ Cmd+V วางในช่องได้เลยครับ`);
+            }).catch(err => {
+                prompt("ก๊อปปี้ตัวเลขวินาทีนี้ได้เลยครับ:", curSec);
+            });
+        }
+
+        // ดึงเวลาปัจจุบันของคลิปมาใส่ในช่องแก้ไขทันที (One-click Paste)
+        function pasteCurrentVideoTimeTo(inputId) {
+            const curSec = parseFloat((timeVideo.currentTime || 0).toFixed(2));
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.value = curSec;
+                calculateEditDuration();
+            }
+        }
+
+        // Timeline Scrubbing Click event
+        function handleTimelineClick(event) {
+            const container = document.getElementById('timelineContainer');
+            const rect = container.getBoundingClientRect();
+            const clickX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+            const duration = timeVideo.duration;
+
+            if (duration > 0 && rect.width > 0) {
+                const scrubTime = (clickX / rect.width) * duration;
+                timeVideo.currentTime = scrubTime;
+                state.reviewSegment = null; // Clear review segment on scrub
+
+                // ป้องกันปัญหาเวลาติดลบเมื่อเลื่อนย้อนหลัง
+                if (state.startTime !== null && scrubTime < state.startTime) {
+                    state.startTime = scrubTime;
+                    if (hudStartVal) hudStartVal.textContent = `START: ${scrubTime.toFixed(2)} sec`;
+                }
+
+                // ปรับ Timeline UI ทันทีไม่ต้องรอเฟรมถัดไป
+                const percent = (scrubTime / duration) * 100;
+                document.getElementById('timelineProgress').style.width = `${percent}%`;
+                const curEl = document.getElementById('hudCurrentSec');
+                if (curEl) curEl.textContent = scrubTime.toFixed(2);
+            }
+        }
+
+        // Close Session - triggers Export Settings Modal
+        function finishWorkstudySession() {
+            timeVideo.pause();
+
+            if (state.recordedCycles.length === 0) {
+                alert("ไม่มีข้อมูลประวัติการจับเวลาที่จะบันทึก ย้ายกลับสู่หน้าแรก");
+                if (state.videoUrl) {
+                    URL.revokeObjectURL(state.videoUrl);
+                    state.videoUrl = null;
+                }
+                location.reload();
+                return;
+            }
+
+            // Open Export Settings Modal with live preview
+            openExportModal();
+        }
+
+        // Helper function escape XML entities
+        function escapeXmlForExcel(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+
+        // Helper function to update cell in OpenXML worksheet
+        function updateOpenXmlCell(xml, cellRef, val, isText = false) {
+            if (val === null || val === undefined || val === '') return xml;
+            const escaped = escapeXmlForExcel(val);
+            const regWithContent = new RegExp('(<c\\s+[^>]*?r="' + cellRef + '"[^>]*?>).*?(<\\/c>)');
+            const regSelfClose = new RegExp('<c\\s+[^>]*?r="' + cellRef + '"([^>]*?)\\/>');
+            
+            if (regSelfClose.test(xml)) {
+                return xml.replace(regSelfClose, (match, attrs) => {
+                    const cleanAttrs = attrs.replace(/\s*t="[^"]*"/g, '');
+                    if (isText) {
+                        return '<c r="' + cellRef + '"' + cleanAttrs + ' t="inlineStr"><is><t>' + escaped + '</t></is></c>';
+                    } else {
+                        return '<c r="' + cellRef + '"' + cleanAttrs + '><v>' + escaped + '</v></c>';
+                    }
+                });
+            } else if (regWithContent.test(xml)) {
+                return xml.replace(regWithContent, (match, openTag, closeTag) => {
+                    let cleanOpen = openTag.replace(/\s*t="[^"]*"/g, '');
+                    if (isText) {
+                        cleanOpen = cleanOpen.replace(/>$/, ' t="inlineStr">');
+                        return cleanOpen + '<is><t>' + escaped + '</t></is>' + closeTag;
+                    } else {
+                        return cleanOpen + '<v>' + escaped + '</v>' + closeTag;
+                    }
+                });
+            }
+            return xml;
+        }
+
+        // Exports all records in state.recordedCycles memory using Time.xlsx Template
+        async function exportSessionToExcel() {
+            try {
+                if (state.recordedCycles.length === 0) {
+                    alert("ไม่มีข้อมูลประวัติการจับเวลาที่จะบันทึก");
+                    return;
+                }
+
+                // 1. Build true 2D Round Matrix based on actual cycleRound
+                const { orderedSteps, maxRound, stepMatrix } = buildCycleRoundMatrix();
+                const mode = state.swctPlotMode || 'min';
+                const { stepValues, totalTime, bestRound, worstRound } = getSwctStepValues(orderedSteps, stepMatrix, maxRound, mode);
+                const { maxAxis, majorUnit } = calculateChartAxis(totalTime);
+
+                const todayStr = new Date().toISOString().split('T')[0];
+                const parts = todayStr.split('-');
+                const shortDateStr = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0].slice(2)}` : todayStr;
+                const empName = state.recordedCycles.length > 0 ? state.recordedCycles[0].employee : (employeeName || "Employee 1");
+                const vdoName = state.videoFile ? state.videoFile.name : "VDO Sewing";
+                const procName = vdoName.replace(/\.[^/.]+$/, "");
+                const modelName = "RG21";
+                const safeName = (procName || "cycle_time").replace(/[^\wก-๙]/g, "_");
+                const filename = `Time_Measurement_Sheet_${safeName}.xlsx`;
+
+                const modeLabels = {
+                    'min': 'Min Time (ค่าน้อยสุด)',
+                    'avg': 'Average (ค่าเฉลี่ย)',
+                    'max': 'Max Time (ค่ามากสุด)',
+                    'best_round': 'Best Round (รอบรวมน้อยสุด)',
+                    'worst_round': 'Worst Round (รอบรวมมากสุด)'
+                };
+                const plotLabel = modeLabels[mode] || mode;
+
+                // Try exporting via app_server.py backend first (uses full OpenXML engine with precomputed graph points)
+                let templateLoaded = false;
+                try {
+                    const pyPayload = {
+                        date: todayStr,
+                        process: procName,
+                        employee: empName,
+                        model: modelName,
+                        swctPlotMode: mode,
+                        steps: orderedSteps.map((step, sIdx) => {
+                            const runs = [];
+                            for (let r = 1; r <= 10; r++) {
+                                const val = stepMatrix[step][r];
+                                runs.push(val !== undefined && val !== null ? parseFloat(val.toFixed(2)) : null);
+                            }
+                            return {
+                                name: step,
+                                runs: runs
+                            };
+                        }),
+                        rawCycles: state.recordedCycles.map((c, idx) => ({
+                            no: idx + 1,
+                            cycleRound: c.cycleRound || 1,
+                            employee: c.employee || empName,
+                            step: c.step,
+                            start: c.start,
+                            end: c.end,
+                            duration: c.duration,
+                            note: c.note || (c.cycleRound ? `รอบที่ ${c.cycleRound}` : '')
+                        }))
+                    };
+                    const pyResp = await fetch('/api/export_template_excel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(pyPayload)
+                    });
+                    if (pyResp.ok) {
+                        const blob = await pyResp.blob();
+                        const downloadUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(downloadUrl);
+                        alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ 100%!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\n- สเกลแกนเวลากราฟ: 0 ถึง ${maxAxis} วินาที (แบ่งช่องละ ${majorUnit}s)\nรูปแบบตรงตามแม่แบบ Time.xlsx เป๊ะทุกประการ พร้อมกราฟ SWCT แสดงแท่งกราฟชัดเจนครับ`);
+                        templateLoaded = true;
+                        return;
+                    }
+                } catch (srvErr) {
+                    console.warn("Server export attempt, fallback to in-browser JSZip:", srvErr);
+                }
+
+                // If offline or file:// protocol without server, use JSZip with Base64 Master Template or fetch
+                if (!templateLoaded && typeof JSZip !== 'undefined') {
+                    try {
+                        let zip = null;
+                        if (typeof TIME_TEMPLATE_BASE64 !== 'undefined' && TIME_TEMPLATE_BASE64.length > 100) {
+                            zip = await JSZip.loadAsync(TIME_TEMPLATE_BASE64, { base64: true });
+                        } else {
+                            const resp = await fetch('Time.xlsx');
+                            if (resp.ok) {
+                                const templateArrayBuffer = await resp.arrayBuffer();
+                                zip = await JSZip.loadAsync(templateArrayBuffer);
+                            }
+                        }
+                        
+                        if (zip && zip.file('xl/worksheets/sheet1.xml') && zip.file('xl/worksheets/sheet2.xml')) {
+                                const parser = new DOMParser();
+                                const s1Str = await zip.file('xl/worksheets/sheet1.xml').async('string');
+                                const s2Str = await zip.file('xl/worksheets/sheet2.xml').async('string');
+                                const doc1 = parser.parseFromString(s1Str, 'application/xml');
+                                const doc2 = parser.parseFromString(s2Str, 'application/xml');
+
+                                function setDomCell(doc, cellRef, val, isStr, newFormula) {
+                                    const cList = doc.getElementsByTagName('c');
+                                    for (let i = 0; i < cList.length; i++) {
+                                        const c = cList[i];
+                                        if (c.getAttribute('r') === cellRef) {
+                                            let fElem = c.getElementsByTagName('f')[0];
+                                            if (newFormula !== undefined) {
+                                                if (newFormula) {
+                                                    if (!fElem) {
+                                                        fElem = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'f');
+                                                        c.insertBefore(fElem, c.firstChild);
+                                                    }
+                                                    fElem.textContent = newFormula;
+                                                } else if (fElem) {
+                                                    c.removeChild(fElem);
+                                                    fElem = null;
+                                                }
+                                            }
+
+                                            // Remove all children except fElem
+                                            const children = Array.from(c.childNodes);
+                                            for (let child of children) {
+                                                if (child !== fElem) {
+                                                    c.removeChild(child);
+                                                }
+                                            }
+
+                                            const valStr = (val !== null && val !== undefined) ? String(val) : '';
+
+                                            if (fElem) {
+                                                if (isStr) {
+                                                    c.setAttribute('t', 'str'); // OpenXML: formula returning string MUST use t="str"
+                                                } else {
+                                                    c.removeAttribute('t'); // Default numeric formula result is number
+                                                }
+                                                const vEl = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'v');
+                                                vEl.textContent = valStr;
+                                                c.appendChild(vEl);
+                                            } else {
+                                                if (isStr) {
+                                                    c.setAttribute('t', 'inlineStr');
+                                                    const isEl = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'is');
+                                                    const tEl = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 't');
+                                                    tEl.textContent = valStr;
+                                                    isEl.appendChild(tEl);
+                                                    c.appendChild(isEl);
+                                                } else {
+                                                    c.removeAttribute('t');
+                                                    const vEl = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'v');
+                                                    vEl.textContent = valStr;
+                                                    c.appendChild(vEl);
+                                                }
+                                            }
+                                            return;
+                                        }
+                                    }
+                                }
+
+                                // Fill Headers on sheet1
+                                setDomCell(doc1, 'B1', todayStr, true);
+                                setDomCell(doc1, 'B2', procName, true);
+                                setDomCell(doc1, 'M2', empName, true);
+                                setDomCell(doc1, 'B3', modelName, true);
+
+                                // Fill Headers on sheet2
+                                setDomCell(doc2, 'CB1', ':   ' + shortDateStr, true);
+                                setDomCell(doc2, 'A2', 'PROCESS NAME :   ' + procName, true);
+                                setDomCell(doc2, 'E1', 'MODEL : ' + modelName, true);
+
+                                // Fill Steps
+                                const colLetters = ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+                                const ptsSer0 = [];
+                                const ptsSer1 = [];
+                                let cumTime = 0.0;
+                                const colTotals = new Array(10).fill(0);
+                                let totalMinSum = 0;
+                                let totalMaxSum = 0;
+                                let totalAvgSum = 0;
+
+                                orderedSteps.forEach((step, sIdx) => {
+                                    const timeRow = 5 + sIdx;
+                                    const swctRow = 7 + sIdx * 2;
+                                    const chartIdx = sIdx * 2;
+
+                                    if (timeRow <= 33) {
+                                        setDomCell(doc1, 'A' + timeRow, sIdx + 1, false);
+                                        setDomCell(doc1, 'B' + timeRow, step, true);
+
+                                        const validDurs = [];
+                                        for (let r = 1; r <= 10; r++) {
+                                            const dVal = stepMatrix[step][r];
+                                            if (dVal !== undefined && dVal !== null) {
+                                                validDurs.push(dVal);
+                                                setDomCell(doc1, colLetters[r - 1] + timeRow, dVal.toFixed(2), false);
+                                                colTotals[r - 1] += dVal;
+                                            }
+                                        }
+
+                                        if (validDurs.length > 0) {
+                                            const minVal = Math.min(...validDurs);
+                                            const maxVal = Math.max(...validDurs);
+                                            const flucVal = maxVal - minVal;
+                                            const avgVal = validDurs.reduce((a, b) => a + b, 0) / validDurs.length;
+
+                                            setDomCell(doc1, 'M' + timeRow, minVal.toFixed(2), false);
+                                            setDomCell(doc1, 'N' + timeRow, maxVal.toFixed(2), false);
+                                            setDomCell(doc1, 'O' + timeRow, flucVal.toFixed(2), false);
+                                            setDomCell(doc1, 'P' + timeRow, avgVal.toFixed(2), false);
+
+                                            totalMinSum += minVal;
+                                            totalMaxSum += maxVal;
+                                            totalAvgSum += avgVal;
+
+                                            const plotVal = stepValues[step] !== undefined ? stepValues[step] : minVal;
+
+                                            let targetCol = 'M';
+                                            if (mode === 'min') targetCol = 'M';
+                                            else if (mode === 'max') targetCol = 'N';
+                                            else if (mode === 'avg') targetCol = 'P';
+                                            else if (mode === 'best_round') targetCol = colLetters[(bestRound || 1) - 1];
+                                            else if (mode === 'worst_round') targetCol = colLetters[(worstRound || 1) - 1];
+                                            else if (mode && mode.startsWith('round_')) {
+                                                const rIdx = parseInt(mode.replace('round_', '')) - 1;
+                                                targetCol = colLetters[rIdx] || 'C';
+                                            }
+                                            const swctFormula = `IF('TIME MEASUREMENT'!${targetCol}${timeRow}="","",'TIME MEASUREMENT'!${targetCol}${timeRow})`;
+
+                                            // SWCT step name cell C{swctRow} keeps formula and stores text in <v> with t="str"
+                                            setDomCell(doc2, 'C' + swctRow, step, true);
+                                            setDomCell(doc2, 'G' + swctRow, plotVal.toFixed(2), false, swctFormula);
+
+                                            ptsSer0.push({ idx: chartIdx, val: cumTime });
+                                            ptsSer1.push({ idx: chartIdx, val: plotVal });
+
+                                            setDomCell(doc2, 'EE' + swctRow, cumTime.toFixed(2), false);
+                                            cumTime += plotVal;
+                                        }
+                                    }
+                                });
+
+                                // Total row on Sheet 1
+                                for (let cIdx = 0; cIdx < 10; cIdx++) {
+                                    if (colTotals[cIdx] > 0) {
+                                        setDomCell(doc1, colLetters[cIdx] + '34', colTotals[cIdx].toFixed(2), false);
+                                    }
+                                }
+                                setDomCell(doc1, 'M34', totalMinSum.toFixed(2), false);
+                                setDomCell(doc1, 'N34', totalMaxSum.toFixed(2), false);
+                                setDomCell(doc1, 'O34', (totalMaxSum - totalMinSum).toFixed(2), false);
+                                setDomCell(doc1, 'P34', totalAvgSum.toFixed(2), false);
+
+                                // SWCT Totals
+                                const totalSwct = cumTime;
+                                setDomCell(doc2, 'BD2', totalSwct.toFixed(2), false);
+                                setDomCell(doc2, 'G58', totalSwct.toFixed(2), false);
+                                setDomCell(doc2, 'G60', totalSwct.toFixed(2), false);
+                                setDomCell(doc2, 'AT2', 'CYCLE TIME (' + plotLabel + ')', true);
+
+                                // Update chart1.xml precomputed cache & dynamic axis scale
+                                if (zip.file('xl/charts/chart1.xml')) {
+                                    let chartXml = await zip.file('xl/charts/chart1.xml').async('string');
+                                    
+                                    function buildCacheXml(pts) {
+                                        const ptMap = {};
+                                        pts.forEach(p => { ptMap[p.idx] = p.val; });
+                                        let res = '<c:numCache><c:formatCode>0.00</c:formatCode><c:ptCount val="50"/>';
+                                        for (let i = 0; i < 50; i++) {
+                                            if (ptMap[i] !== undefined) {
+                                                res += `<c:pt idx="${i}"><c:v>${ptMap[i].toFixed(2)}</c:v></c:pt>`;
+                                            } else if (i % 2 === 0) {
+                                                res += `<c:pt idx="${i}"><c:v>0</c:v></c:pt>`;
+                                            }
+                                        }
+                                        res += '</c:numCache>';
+                                        return res;
+                                    }
+
+                                    const c0 = buildCacheXml(ptsSer0);
+                                    const c1 = buildCacheXml(ptsSer1);
+
+                                    chartXml = chartXml.replace(/(<c:f>SWCT!\$EE\$7:\$EE\$56<\/c:f>)(?:<c:numCache>[\s\S]*?<\/c:numCache>)?/, '$1' + c0);
+                                    chartXml = chartXml.replace(/(<c:f>SWCT!\$G\$7:\$G\$56<\/c:f>)(?:<c:numCache>[\s\S]*?<\/c:numCache>)?/, '$1' + c1);
+
+                                    // Dynamic chart axis scaling
+                                    chartXml = chartXml.replace(
+                                        /(<(?:\w+:)?valAx>[\s\S]*?<(?:\w+:)?scaling>[\s\S]*?<(?:\w+:)?max val=\")\d+(\"\s*\/>)/,
+                                        (m, p1, p2) => p1 + maxAxis + p2
+                                    );
+                                    chartXml = chartXml.replace(
+                                        /(<(?:\w+:)?valAx>[\s\S]*?<(?:\w+:)?majorUnit val=\")\d+(\"\s*\/>)/,
+                                        (m, p1, p2) => p1 + majorUnit + p2
+                                    );
+
+                                    zip.file('xl/charts/chart1.xml', chartXml);
+                                }
+
+                                if (zip.file('xl/workbook.xml')) {
+                                    let wbXml = await zip.file('xl/workbook.xml').async('string');
+                                    if (!wbXml.includes('fullCalcOnLoad')) {
+                                        wbXml = wbXml.replace('<calcPr calcId="181029"/>', '<calcPr calcId="181029" fullCalcOnLoad="1"/>');
+                                        zip.file('xl/workbook.xml', wbXml);
+                                    }
+                                }
+
+                                // Populate Sheet 3: Raw Data Log
+                                function escXml(str) {
+                                    if (str === null || str === undefined) return '';
+                                    return String(str)
+                                        .replace(/&/g, '&amp;')
+                                        .replace(/</g, '&lt;')
+                                        .replace(/>/g, '&gt;')
+                                        .replace(/"/g, '&quot;')
+                                        .replace(/'/g, '&apos;');
+                                }
+
+                                const rawRowsXml = [];
+                                rawRowsXml.push('<row r="1"><c r="A1" t="inlineStr"><is><t>No.</t></is></c><c r="B1" t="inlineStr"><is><t>Employee</t></is></c><c r="C1" t="inlineStr"><is><t>Work Step</t></is></c><c r="D1" t="inlineStr"><is><t>Start Time (sec)</t></is></c><c r="E1" t="inlineStr"><is><t>End Time (sec)</t></is></c><c r="F1" t="inlineStr"><is><t>Cycle Time (sec)</t></is></c><c r="G1" t="inlineStr"><is><t>Note</t></is></c></row>');
+
+                                state.recordedCycles.forEach((c, idx) => {
+                                    const r = idx + 2;
+                                    const cNo = idx + 1;
+                                    const cEmp = escXml(c.employee || empName);
+                                    const cStep = escXml(c.step || '');
+                                    const cStart = Number(c.start || 0).toFixed(2);
+                                    const cEnd = Number(c.end || 0).toFixed(2);
+                                    const cDur = Number(c.duration || 0).toFixed(2);
+                                    const cNote = escXml(c.note || (c.cycleRound ? `รอบที่ ${c.cycleRound}` : ''));
+
+                                    rawRowsXml.push(
+                                        `<row r="${r}">` +
+                                        `<c r="A${r}"><v>${cNo}</v></c>` +
+                                        `<c r="B${r}" t="inlineStr"><is><t>${cEmp}</t></is></c>` +
+                                        `<c r="C${r}" t="inlineStr"><is><t>${cStep}</t></is></c>` +
+                                        `<c r="D${r}"><v>${cStart}</v></c>` +
+                                        `<c r="E${r}"><v>${cEnd}</v></c>` +
+                                        `<c r="F${r}"><v>${cDur}</v></c>` +
+                                        `<c r="G${r}" t="inlineStr"><is><t>${cNote}</t></is></c>` +
+                                        `</row>`
+                                    );
+                                });
+
+                                const dimRef = `A1:G${Math.max(1, state.recordedCycles.length + 1)}`;
+                                const sheet3Xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                                    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+                                    '<sheetPr><outlinePr summaryBelow="1" summaryRight="1" /><pageSetUpPr /></sheetPr>' +
+                                    `<dimension ref="${dimRef}" />` +
+                                    '<sheetViews><sheetView workbookViewId="0"><selection activeCell="A1" sqref="A1" /></sheetView></sheetViews>' +
+                                    '<sheetFormatPr baseColWidth="8" defaultRowHeight="15" />' +
+                                    '<cols>' +
+                                    '<col width="8" customWidth="1" min="1" max="1" />' +
+                                    '<col width="18" customWidth="1" min="2" max="2" />' +
+                                    '<col width="25" customWidth="1" min="3" max="3" />' +
+                                    '<col width="18" customWidth="1" min="4" max="4" />' +
+                                    '<col width="18" customWidth="1" min="5" max="5" />' +
+                                    '<col width="18" customWidth="1" min="6" max="6" />' +
+                                    '<col width="30" customWidth="1" min="7" max="7" />' +
+                                    '</cols>' +
+                                    `<sheetData>${rawRowsXml.join('')}</sheetData>` +
+                                    '<pageMargins left="0.75" right="0.75" top="1" bottom="1" header="0.5" footer="0.5" />' +
+                                    '</worksheet>';
+
+                                zip.file('xl/worksheets/sheet3.xml', sheet3Xml);
+
+                                const serializer = new XMLSerializer();
+                                zip.file('xl/worksheets/sheet1.xml', serializer.serializeToString(doc1));
+                                zip.file('xl/worksheets/sheet2.xml', serializer.serializeToString(doc2));
+
+                                const blob = await zip.generateAsync({
+                                    type: 'blob',
+                                    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                                });
+
+                                const downloadUrl = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = downloadUrl;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(downloadUrl);
+
+                                alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\nครบทั้ง 3 ชีท:\n1. TIME MEASUREMENT (ฟอร์มสรุปจับเวลา)\n2. SWCT (ตารางงานมาตรฐานผสมพร้อมกราฟ)\n3. Raw Data Log (ประวัติการจับเวลาละเอียดย้อนหลัง)`);
+                                templateLoaded = true;
+                                return;
+                            }
+                    } catch (zipErr) {
+                        console.warn("In-browser JSZip export failed, falling back to SheetJS:", zipErr);
+                    }
+                }
+
+                // Fallback: Generate via SheetJS (Standard Form)
+                let maxRunsCount = Math.min(10, Math.max(1, maxRound));
+
+                const sheetRows = [];
+                const r1 = new Array(15).fill("");
+                r1[0] = "Date";
+                r1[1] = todayStr;
+                r1[2] = "Time Measurement Sheet\nตารางบันทึกการจับเวลา";
+                r1[12] = "REPORTED BY";
+                sheetRows.push(r1);
+
+                const r2 = new Array(15).fill("");
+                r2[0] = "Process";
+                r2[1] = procName;
+                r2[12] = empName;
+                sheetRows.push(r2);
+
+                const r3 = new Array(15).fill("");
+                r3[0] = "Model";
+                r3[1] = modelName;
+                sheetRows.push(r3);
+
+                const r4 = ["Seq.", "Job Element"];
+                for (let i = 1; i <= maxRunsCount; i++) {
+                    r4.push(String(i));
+                }
+                r4.push("Min", "Max", "Fluctuation", "Average");
+                sheetRows.push(r4);
+
+                const colTotals = new Array(maxRunsCount).fill(0);
+                let totalMinSum = 0;
+                let totalMaxSum = 0;
+                let totalAvgSum = 0;
+
+                orderedSteps.forEach((step, sIdx) => {
+                    const row = [sIdx + 1, step];
+
+                    const validDurs = [];
+                    for (let i = 0; i < maxRunsCount; i++) {
+                        const rNum = i + 1;
+                        const val = stepMatrix[step][rNum];
+                        if (val !== undefined && val !== null) {
+                            validDurs.push(val);
+                            row.push(val);
+                            colTotals[i] += val;
+                        } else {
+                            row.push("");
+                        }
+                    }
+
+                    let minVal = validDurs.length > 0 ? Math.min(...validDurs) : 0;
+                    let maxVal = validDurs.length > 0 ? Math.max(...validDurs) : 0;
+                    let sumVal = validDurs.reduce((a, b) => a + b, 0);
+                    let avgVal = validDurs.length > 0 ? parseFloat((sumVal / validDurs.length).toFixed(2)) : 0;
+                    let flucVal = parseFloat((maxVal - minVal).toFixed(2));
+
+                    row.push(minVal, maxVal, flucVal, avgVal);
+                    totalMinSum += minVal;
+                    totalMaxSum += maxVal;
+                    totalAvgSum += avgVal;
+                    sheetRows.push(row);
+                });
+
+                const totalRow = ["", "TOTAL"];
+                for (let i = 0; i < maxRunsCount; i++) {
+                    totalRow.push(parseFloat(colTotals[i].toFixed(2)));
+                }
+                totalRow.push(
+                    parseFloat(totalMinSum.toFixed(2)),
+                    parseFloat(totalMaxSum.toFixed(2)),
+                    parseFloat((totalMaxSum - totalMinSum).toFixed(2)),
+                    parseFloat(totalAvgSum.toFixed(2))
+                );
+                sheetRows.push(totalRow);
+                sheetRows.push([]);
+                sheetRows.push(["SET UP TIME", "", "", "Sec.", "", "LOT SIZE SET UP", "", "", "", "", "", "", "Pcs."]);
+                sheetRows.push(["PERIODIC WORK TIME", "", "", "Sec.", "", "LOT SIZE PERIODIC WORK", "", "", "", "", "", "", "Pcs."]);
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+                ws['!cols'] = [{ wch: 6 }, { wch: 28 }, ...new Array(maxRunsCount).fill({ wch: 9 }), { wch: 10 }, { wch: 10 }, { wch: 13 }, { wch: 12 }];
+                XLSX.utils.book_append_sheet(wb, ws, "TIME MEASUREMENT");
+
+                // Add SWCT Sheet
+                const swctRows = [
+                    ["LINE :", "", "", "", `MODEL : ${modelName}`, "ลำดับคนทำงาน", "", "Standardized Work Combination Table\nตารางงานมาตรฐานผสม", "", "", "TAKT TIME", ":", "", "Sec./Pc.", "DATE", `: ${shortDateStr}`],
+                    [`PROCESS NAME : ${procName}`, "", "", "", "", "", "", "", "", "", `CYCLE TIME (${plotLabel})`, parseFloat(totalTime.toFixed(2)), "", "Sec./Pc.", "REQUIRE", ":"],
+                    ["PART NAME :", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""],
+                    ["No.", "SYMBOL", "รายละเอียดขั้นตอนการทำงาน", "", "", "หมายเลข", "เวลางาน", "", "", "ภาพแสดงงานรวม (วินาที)"],
+                    ["", "", "", "", "", "เครื่องจักร", "คน", "เครื่อง", "เดิน"]
+                ];
+                orderedSteps.forEach((step, sIdx) => {
+                    const plotVal = stepValues[step] !== undefined ? stepValues[step] : 0;
+                    swctRows.push([sIdx + 1, "", step, "", "", "", parseFloat(plotVal.toFixed(2)), "", ""]);
+                    swctRows.push([]);
+                });
+                swctRows.push(["", "", "", "", "", "", parseFloat(totalTime.toFixed(2)), "", ""]);
+                const wsSwct = XLSX.utils.aoa_to_sheet(swctRows);
+                XLSX.utils.book_append_sheet(wb, wsSwct, "SWCT");
+
+                XLSX.writeFile(wb, filename);
+                alert(`✅ ส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\nมีชีทครบถ้วนครับ`);
+            } catch (err) {
+                console.error("Export Excel Error:", err);
+                alert("เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel: " + err.message);
+            }
+        }
+
+        // Un-saved Confirmation Discard Modals
+        function openDiscardModal() {
+            timeVideo.pause();
+            document.getElementById('discardModal').style.display = 'flex';
+        }
+
+        function closeDiscardModal() {
+            document.getElementById('discardModal').style.display = 'none';
+        }
+
+        function confirmDiscardSession() {
+            if (state.videoUrl) {
+                URL.revokeObjectURL(state.videoUrl);
+                state.videoUrl = null;
+            }
+            location.reload(); // Reloads page back to Setup Screen without saving!
+        }
+
+        // ==========================================
+        // EDIT & DELETE CYCLE FUNCTIONS & HOME BUTTON
+        // ==========================================
+        function playCycleSegment(cycleNo) {
+            const cycle = state.recordedCycles.find(c => c.no === cycleNo);
+            if (!cycle) return;
+            
+            // Set review boundaries
+            state.reviewSegment = {
+                start: cycle.start,
+                end: cycle.end,
+                no: cycle.no
+            };
+            
+            // Seek and play safely
+            timeVideo.currentTime = cycle.start;
+            safePlayVideo();
+            
+            updateProgressHUD();
+        }
+
+        function deleteCycleItem(cycleNo) {
+            const cycleIndex = state.recordedCycles.findIndex(c => c.no === cycleNo);
+            if (cycleIndex === -1) return;
+            const cycleToDelete = state.recordedCycles[cycleIndex];
+
+            if (!confirm(`คุณต้องการลบข้อมูลรอบที่ ${cycleNo} (${cycleToDelete.step}) ใช่หรือไม่?`)) {
+                return;
+            }
+            
+            // บันทึกลง Undo Stack เพื่อให้กู้คืนได้
+            state.deletedCyclesHistory.push({
+                item: Object.assign({}, cycleToDelete),
+                index: cycleIndex
+            });
+            const btnUndo = document.getElementById('btnUndoDelete');
+            if (btnUndo) btnUndo.style.display = 'inline-block';
+
+            selectedCycleNos.delete(cycleNo);
+            state.recordedCycles = state.recordedCycles.filter(c => c.no !== cycleNo);
+            
+            // Renumber remaining cycles
+            state.recordedCycles.forEach((c, idx) => {
+                c.no = idx + 1;
+            });
+            
+            updateAllCycleRounds();
+            
+            state.sessionCycleCount = state.recordedCycles.length;
+            state.cycleNo = state.sessionCycleCount + 1;
+            
+            renderCycleList();
+            updateBatchActionBar();
+            if (currentSidebarView === 'matrix') {
+                renderCycleMatrix();
+            }
+            
+            cycleBadgeCount.textContent = state.sessionCycleCount;
+            hudRecordedText.textContent = `Recorded: ${state.sessionCycleCount} times`;
+        }
+
+        // ฟังก์ชันกู้คืนรอบเวลาที่เพิ่งลบไป (Undo)
+        function undoDeleteCycle() {
+            if (!state.deletedCyclesHistory || state.deletedCyclesHistory.length === 0) return;
+            const restored = state.deletedCyclesHistory.pop();
+            if (!restored) return;
+
+            const insertIdx = Math.min(restored.index, state.recordedCycles.length);
+            state.recordedCycles.splice(insertIdx, 0, restored.item);
+
+            // Renumber all cycles
+            state.recordedCycles.forEach((c, idx) => {
+                c.no = idx + 1;
+            });
+            
+            updateAllCycleRounds();
+
+            state.sessionCycleCount = state.recordedCycles.length;
+            state.cycleNo = state.sessionCycleCount + 1;
+
+            renderCycleList();
+            updateBatchActionBar();
+            if (currentSidebarView === 'matrix') {
+                renderCycleMatrix();
+            }
+
+            cycleBadgeCount.textContent = state.sessionCycleCount;
+            hudRecordedText.textContent = `Recorded: ${state.sessionCycleCount} times`;
+
+            const btnUndo = document.getElementById('btnUndoDelete');
+            if (btnUndo && state.deletedCyclesHistory.length === 0) {
+                btnUndo.style.display = 'none';
+            }
+        }
+
+        function openEditCycleModal(cycleNo) {
+            timeVideo.pause();
+            const cycle = state.recordedCycles.find(c => c.no === cycleNo);
+            if (!cycle) return;
+            
+            document.getElementById('editCycleNo').value = cycleNo;
+            
+            const stepSelect = document.getElementById('editCycleStepSelect');
+            stepSelect.innerHTML = "";
+            state.uniqueSteps.forEach(step => {
+                const opt = document.createElement('option');
+                opt.value = step;
+                opt.textContent = getStepDisplayLabel(step);
+                if (step === cycle.step) opt.selected = true;
+                stepSelect.appendChild(opt);
+            });
+            
+            document.getElementById('editCycleStart').value = cycle.start;
+            document.getElementById('editCycleEnd').value = cycle.end;
+            document.getElementById('editCycleDuration').value = cycle.duration;
+            document.getElementById('editCycleNote').value = cycle.note || "";
+            
+            document.getElementById('editCycleModal').style.display = 'flex';
+        }
+
+        function calculateEditDuration() {
+            const startVal = parseFloat(document.getElementById('editCycleStart').value) || 0;
+            const endVal = parseFloat(document.getElementById('editCycleEnd').value) || 0;
+            const duration = Math.max(0, endVal - startVal);
+            document.getElementById('editCycleDuration').value = duration.toFixed(2);
+        }
+
+        function closeEditCycleModal() {
+            document.getElementById('editCycleModal').style.display = 'none';
+        }
+
+        function saveCycleEdit() {
+            const cycleNo = parseInt(document.getElementById('editCycleNo').value);
+            const cycle = state.recordedCycles.find(c => c.no === cycleNo);
+            if (!cycle) return;
+            
+            const startVal = parseFloat(document.getElementById('editCycleStart').value);
+            const endVal = parseFloat(document.getElementById('editCycleEnd').value);
+            const stepVal = document.getElementById('editCycleStepSelect').value;
+            const noteVal = document.getElementById('editCycleNote').value.trim();
+            
+            // ตรวจสอบความถูกต้องของค่าที่แก้ไข
+            if (isNaN(startVal) || isNaN(endVal)) {
+                alert("กรุณากรอกเวลาเริ่มต้นและสิ้นสุดเป็นตัวเลขที่ถูกต้อง");
+                return;
+            }
+            if (startVal < 0) {
+                alert("เวลาเริ่มต้นต้องไม่น้อยกว่า 0 วินาที");
+                return;
+            }
+            if (endVal <= startVal) {
+                alert(`เวลาสิ้นสุด (${endVal.toFixed(2)}s) ต้องมากกว่าเวลาเริ่มต้น (${startVal.toFixed(2)}s)!`);
+                return;
+            }
+            if (timeVideo.duration && endVal > timeVideo.duration) {
+                alert(`เวลาสิ้นสุดต้องไม่เกินความยาววิดีโอ (${timeVideo.duration.toFixed(2)} วินาที)`);
+                return;
+            }
+
+            cycle.start = parseFloat(startVal.toFixed(2));
+            cycle.end = parseFloat(endVal.toFixed(2));
+            cycle.duration = parseFloat((endVal - startVal).toFixed(2));
+            cycle.step = stepVal;
+            cycle.note = noteVal;
+            
+            updateAllCycleRounds();
+            closeEditCycleModal();
+            renderCycleList();
+            if (currentSidebarView === 'matrix') {
+                renderCycleMatrix();
+            }
+        }
+
+        function handleHomeButtonClick() {
+            timeVideo.pause();
+            if (state.recordedCycles.length > 0) {
+                openDiscardModal();
+            } else {
+                if (state.videoUrl) {
+                    URL.revokeObjectURL(state.videoUrl);
+                    state.videoUrl = null;
+                }
+                location.reload();
+            }
+        }
+
+        function seekToStart() {
+            timeVideo.currentTime = 0.01; // Tiny offset to draw first frame cleanly
+            updateProgressHUD();
+        }
+
+        function handleImportExcel(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const sheetName = "Raw Data Log";
+                    if (!workbook.SheetNames.includes(sheetName)) {
+                        alert(`ไฟล์ที่อัปโหลดไม่รองรับ! ไม่พบแผ่นงาน "${sheetName}"`);
+                        input.value = "";
+                        return;
+                    }
+                    
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    const importedCycles = [];
+                    const uniqueStepsSet = new Set();
+                    
+                    for (let i = 1; i < jsonData.length; i++) {
+                        const row = jsonData[i];
+                        if (!row || row.length < 6) continue;
+                        
+                        const cNo = parseInt(row[0]);
+                        const cEmployee = String(row[1] || "").trim();
+                        const cStep = String(row[2] || "").trim();
+                        const cStart = parseFloat(row[3]);
+                        const cEnd = parseFloat(row[4]);
+                        const cDuration = parseFloat(row[5]);
+                        const cNote = String(row[6] || "").trim();
+                        
+                        if (isNaN(cStart) || isNaN(cEnd) || isNaN(cDuration)) continue;
+                        if (cStart < 0 || cEnd < cStart) continue;
+                        
+                        importedCycles.push({
+                            no: cNo,
+                            employee: cEmployee || "Employee 1",
+                            step: cStep || "Assembly",
+                            start: cStart,
+                            end: cEnd,
+                            duration: cDuration,
+                            note: cNote
+                        });
+                        
+                        if (cStep) {
+                            uniqueStepsSet.add(cStep);
+                        }
+                    }
+                    
+                    if (importedCycles.length === 0) {
+                        alert("ไม่พบข้อมูลบันทึกเวลาที่ถูกต้องในไฟล์!");
+                        input.value = "";
+                        return;
+                    }
+                    
+                    // Stage the imported data
+                    state.importedCyclesFromExcel = importedCycles;
+                    state.importedUniqueSteps = Array.from(uniqueStepsSet);
+                    
+                    // Update UI status
+                    const excelDummy = document.getElementById('excelDummy');
+                    const excelNameText = document.getElementById('excelNameText');
+                    excelNameText.textContent = file.name;
+                    excelDummy.classList.add('has-file');
+                    
+                    // Auto populate employee/workstep on setup screen from the first record
+                    document.getElementById('employeeInput').value = importedCycles[0].employee;
+                    document.getElementById('workStepInput').value = importedCycles[0].step;
+                    
+                    alert(`นำเข้าข้อมูลสำเร็จ! โหลดข้อมูลได้ ${importedCycles.length} รอบเวลา`);
+                } catch (err) {
+                    alert(`เกิดข้อผิดพลาดในการอ่านไฟล์ Excel: ${err.message}`);
+                    input.value = "";
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ==========================================
+        // KEYBOARD SHORTCUT EVENT HANDLERS
+        // ==========================================
+        window.addEventListener('keydown', (e) => {
+            // Only capture shortcuts when the dashboard is visible and inputs are not focused
+            if (document.getElementById('dashboardScreen').style.display === 'grid') {
+                // Ignore keys when typing in inputs/selects
+                const activeTag = document.activeElement.tagName.toLowerCase();
+                if (activeTag === 'input' || activeTag === 'select' || activeTag === 'textarea') {
+                    return;
+                }
+
+                const key = e.key.toLowerCase();
+                
+                // 1. Spacebar -> Start / Save Cycle (Prevent default page scrolling)
+                if (e.key === ' ' || e.code === 'Space') {
+                    e.preventDefault();
+                    triggerSessionCapture();
+                }
+                
+                // 2. แป้น P -> Pause / Play
+                else if (key === 'p') {
+                    e.preventDefault();
+                    togglePlayPause();
+                }
+                
+                // 3. แป้น Q -> Done / Save session
+                else if (key === 'q') {
+                    e.preventDefault();
+                    finishWorkstudySession();
+                }
+
+                // 4. แป้น R -> Seek back to start (00:00)
+                else if (key === 'r') {
+                    e.preventDefault();
+                    seekToStart();
+                }
+
+                // 5. ปรับความเร็วผ่านคีย์บอร์ด: [ หรือ - ลดความเร็ว, ] หรือ + เพิ่มความเร็ว (ได้ถึง 5.0x)
+                else if (e.key === '[' || e.key === '-') {
+                    e.preventDefault();
+                    stepPlaybackSpeed(-1);
+                }
+                else if (e.key === ']' || e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    stepPlaybackSpeed(1);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
