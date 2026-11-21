@@ -108,7 +108,7 @@
             align-items: center;
         }
 
-        input[type="text"], .file-dummy {
+        input[type="text"], input[type="url"], .file-dummy {
             width: 100%;
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
@@ -121,9 +121,60 @@
             transition: all 0.25s ease;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus, input[type="url"]:focus {
             border-color: var(--accent-blue);
             box-shadow: 0 0 10px rgba(14, 165, 233, 0.35);
+        }
+
+        /* Video Source Tabs */
+        .video-source-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.7);
+            color: var(--text-muted);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+
+        .tab-btn:hover {
+            background: rgba(51, 65, 85, 0.9);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: #fff;
+            border-color: #38bdf8;
+            box-shadow: 0 2px 10px rgba(14, 165, 233, 0.3);
+        }
+
+        .bar-btn-url {
+            background-color: #1e293b;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #38bdf8;
+            padding: 8px 12px;
+        }
+
+        .bar-btn-url:hover {
+            background-color: #0f172a;
+            border-color: #38bdf8;
+            color: #7dd3fc;
         }
 
         /* File Upload Styling */
@@ -1172,12 +1223,49 @@
         <!-- ========================================== -->
         <div class="setup-screen" id="setupScreen">
             <div class="form-group">
-                <label>1. เลือกไฟล์ Video การทำงาน</label>
-                <div class="file-dummy" id="fileDummy" onclick="document.getElementById('videoInput').click()">
-                    <span id="fileNameText">ยังไม่ได้เลือกไฟล์วิดีโอ...</span>
-                    <span class="file-btn">เลือกไฟล์</span>
+                <label>1. เลือก Video การทำงาน (ไฟล์ในเครื่อง หรือ ดึงจาก URL / OneDrive)</label>
+                
+                <div class="video-source-tabs">
+                    <button type="button" class="tab-btn active" id="tabLocalVideo" onclick="switchVideoSourceTab('local')">
+                        📁 เลือกไฟล์จากเครื่อง
+                    </button>
+                    <button type="button" class="tab-btn" id="tabUrlVideo" onclick="switchVideoSourceTab('url')">
+                        🔗 ดึงจาก URL / OneDrive
+                    </button>
                 </div>
-                <input type="file" id="videoInput" accept="video/*" onchange="handleVideoSelect(this)">
+
+                <!-- Panel 1: Local File -->
+                <div id="panelLocalVideo">
+                    <div class="file-dummy" id="fileDummy" onclick="document.getElementById('videoInput').click()">
+                        <span id="fileNameText">ยังไม่ได้เลือกไฟล์วิดีโอ...</span>
+                        <span class="file-btn">เลือกไฟล์</span>
+                    </div>
+                    <input type="file" id="videoInput" accept="video/*" onchange="handleVideoSelect(this)">
+                </div>
+
+                <!-- Panel 2: Cloud / OneDrive / Online URL -->
+                <div id="panelUrlVideo" style="display: none;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="url" id="videoUrlInput" placeholder="วางลิงก์ OneDrive, SharePoint, Google Drive หรือ Direct .mp4..." style="flex: 1;" onkeydown="if(event.key==='Enter'){event.preventDefault();handleLoadVideoUrl();}">
+                        <button type="button" class="btn btn-blue" id="btnLoadUrl" onclick="handleLoadVideoUrl()" style="white-space: nowrap; padding: 0 18px; font-weight: 600;">
+                            ⚡ ดึงวิดีโอ
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 13px; color: var(--text-muted); white-space: nowrap;">ชื่องาน/วิดีโอ:</span>
+                        <input type="text" id="videoUrlTitleInput" placeholder="ระบุชื่อสำหรับลงในเอกสารรายงาน Excel (เช่น งานเย็บชิ้นส่วน A)..." style="flex: 1; padding: 8px 12px; font-size: 13px;">
+                    </div>
+
+                    <div id="urlFeedback" style="display: none; margin-top: 8px; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5;"></div>
+
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.6; background: rgba(15, 23, 42, 0.4); padding: 10px 12px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);">
+                        💡 <strong>คำแนะนำสำหรับลิงก์ OneDrive / SharePoint:</strong><br>
+                        • สามารถคัดลอกลิงก์แชร์จาก <strong>OneDrive หรือ SharePoint</strong> มาวางได้ทันที ระบบจะแปลงเป็น Direct Video Stream อัตโนมัติ<br>
+                        • แนะนำให้ตั้งสิทธิ์การแชร์เป็น <em>"ทุกคนที่มีลิงก์สามารถดูได้" (Anyone with the link)</em> เพื่อให้เบราว์เซอร์เข้าถึงได้ราบรื่น<br>
+                        • หากวิดีโอขององค์กรติดระบบล็อกอิน (SSO) แล้วดึงไม่ขึ้น สามารถดาวน์โหลดไฟล์มาใส่ที่แท็บ <strong>"เลือกไฟล์จากเครื่อง"</strong> ได้เช่นกันครับ
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -1291,6 +1379,7 @@
                             </div>
 
                             <button class="bar-btn bar-btn-action" id="btnAction" onclick="triggerSessionCapture()">START CYCLE</button>
+                            <button class="bar-btn bar-btn-url" id="btnChangeVideoUrl" onclick="openChangeVideoModal()" title="สลับหรือดึงวิดีโอจาก URL / OneDrive">🔗 สลับ URL</button>
                             <button class="bar-btn bar-btn-home" onclick="handleHomeButtonClick()">START NEW VIDEO</button>
                             <button class="bar-btn bar-btn-close" id="btnSaveData" onclick="finishWorkstudySession()" title="กดเพื่อบันทึกและส่งออกข้อมูลรอบเวลาเป็นไฟล์ Excel ตามแบบฟอร์มมาตรฐาน">💾 บันทึกข้อมูล</button>
                         </div>
@@ -1433,6 +1522,33 @@
             <div class="modal-footer">
                 <button class="modal-btn modal-btn-cancel" onclick="closeRenameStepModal()">ยกเลิก</button>
                 <button class="modal-btn modal-btn-confirm" onclick="confirmRenameStep()">บันทึกชื่อใหม่</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CHANGE / SWAP VIDEO URL MODAL               -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="changeVideoModal">
+        <div class="modal-card" style="max-width: 520px;">
+            <div class="modal-title">🔗 สลับหรือโหลดวิดีโอจาก URL / OneDrive</div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                    คุณสามารถเปลี่ยนแหล่งวิดีโอใหม่ได้ทันที โดยที่<strong>ข้อมูลรอบเวลาที่บันทึกไว้จะไม่สูญหาย</strong>
+                </div>
+                <div class="form-group">
+                    <label style="color: var(--accent-blue);">ลิงก์วิดีโอใหม่ (URL / OneDrive / SharePoint):</label>
+                    <input type="url" id="modalVideoUrlInput" placeholder="วางลิงก์ OneDrive, SharePoint, Google Drive หรือ Direct .mp4..." style="width: 100%;">
+                </div>
+                <div class="form-group">
+                    <label style="color: var(--accent-blue);">ชื่องาน/วิดีโอใหม่ (Optional):</label>
+                    <input type="text" id="modalVideoTitleInput" placeholder="เช่น กระบวนการเย็บรอบ 2..." style="width: 100%;">
+                </div>
+                <div id="modalUrlFeedback" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.5;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeChangeVideoModal()">ยกเลิก</button>
+                <button class="modal-btn modal-btn-confirm" id="btnConfirmSwapVideo" onclick="handleConfirmSwapVideo()" style="background-color: var(--accent-blue);">⚡ เชื่อมต่อและเปลี่ยนวิดีโอ</button>
             </div>
         </div>
     </div>
@@ -1860,6 +1976,348 @@
             }
         }
 
+        // Video Source Tab Switcher (Local File vs Cloud/OneDrive URL)
+        function switchVideoSourceTab(mode) {
+            const tabLocal = document.getElementById('tabLocalVideo');
+            const tabUrl = document.getElementById('tabUrlVideo');
+            const panelLocal = document.getElementById('panelLocalVideo');
+            const panelUrl = document.getElementById('panelUrlVideo');
+
+            if (mode === 'url') {
+                tabLocal.classList.remove('active');
+                tabUrl.classList.add('active');
+                panelLocal.style.display = 'none';
+                panelUrl.style.display = 'block';
+                const urlInput = document.getElementById('videoUrlInput');
+                if (urlInput) urlInput.focus();
+            } else {
+                tabUrl.classList.remove('active');
+                tabLocal.classList.add('active');
+                panelUrl.style.display = 'none';
+                panelLocal.style.display = 'block';
+            }
+        }
+
+        // Smart Cloud / OneDrive / SharePoint Video URL Normalizer
+        function extractAndConvertVideoUrl(rawInput) {
+            if (!rawInput) return "";
+            let str = rawInput.trim();
+
+            // Extract src if user pasted an embed <iframe> tag
+            const iframeMatch = str.match(/src=["']([^"']+)["']/i);
+            if (iframeMatch && iframeMatch[1]) {
+                str = iframeMatch[1];
+            }
+            str = str.replace(/^["']|["']$/g, "").trim();
+
+            try {
+                const u = new URL(str);
+
+                // 1. SharePoint / OneDrive for Business (*.sharepoint.com)
+                if (u.hostname.includes("sharepoint.com")) {
+                    if ((u.pathname.includes("onedrive.aspx") || u.pathname.includes("Doc.aspx")) && u.searchParams.has("id")) {
+                        const sourceUrl = u.searchParams.get("id");
+                        return `${u.origin}/_layouts/15/download.aspx?SourceUrl=${encodeURIComponent(sourceUrl)}`;
+                    }
+                    if (!u.searchParams.has("download")) {
+                        u.searchParams.set("download", "1");
+                        return u.toString();
+                    }
+                    return u.toString();
+                }
+
+                // 2. OneDrive Personal Short Link (1drv.ms)
+                if (u.hostname === "1drv.ms" || u.hostname.endsWith(".1drv.ms")) {
+                    if (!u.searchParams.has("download")) {
+                        u.searchParams.set("download", "1");
+                        return u.toString();
+                    }
+                    return u.toString();
+                }
+
+                // 3. OneDrive Personal (onedrive.live.com)
+                if (u.hostname.includes("onedrive.live.com")) {
+                    if (u.pathname.includes("/view.aspx")) {
+                        u.pathname = u.pathname.replace("/view.aspx", "/download");
+                        return u.toString();
+                    }
+                    if (u.pathname.includes("/redir")) {
+                        u.pathname = u.pathname.replace("/redir", "/download");
+                        return u.toString();
+                    }
+                    if (u.pathname.includes("/embed")) {
+                        u.pathname = u.pathname.replace("/embed", "/download");
+                        return u.toString();
+                    }
+                    if (!u.pathname.includes("/download") && !u.searchParams.has("download")) {
+                        u.searchParams.set("download", "1");
+                        return u.toString();
+                    }
+                    return u.toString();
+                }
+
+                // 4. Dropbox
+                if (u.hostname.includes("dropbox.com")) {
+                    if (u.searchParams.has("dl")) u.searchParams.delete("dl");
+                    u.searchParams.set("raw", "1");
+                    return u.toString();
+                }
+
+                // 5. Google Drive
+                if (u.hostname.includes("drive.google.com") && u.pathname.includes("/file/d/")) {
+                    const m = u.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+                    if (m && m[1]) {
+                        return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+                    }
+                }
+            } catch (e) {
+                if (str.includes("sharepoint.com") || str.includes("1drv.ms")) {
+                    if (!str.includes("download=1")) {
+                        str += (str.includes("?") ? "&" : "?") + "download=1";
+                    }
+                }
+            }
+            return str;
+        }
+
+        // Handles loading video from URL in Setup Screen
+        async function handleLoadVideoUrl() {
+            const urlInput = document.getElementById('videoUrlInput');
+            const feedback = document.getElementById('urlFeedback');
+            const btnLoad = document.getElementById('btnLoadUrl');
+            const titleInput = document.getElementById('videoUrlTitleInput');
+
+            const rawUrl = urlInput.value.trim();
+            if (!rawUrl) {
+                alert("กรุณากรอกหรือวางลิงก์วิดีโอ (URL/OneDrive) ก่อนกดดึงวิดีโอครับ");
+                urlInput.focus();
+                return false;
+            }
+
+            const convertedUrl = extractAndConvertVideoUrl(rawUrl);
+
+            feedback.style.display = 'block';
+            feedback.style.background = 'rgba(56, 189, 248, 0.15)';
+            feedback.style.border = '1px solid var(--accent-blue)';
+            feedback.style.color = 'var(--accent-blue)';
+            feedback.innerHTML = '⏳ กำลังทดสอบเชื่อมต่อและดึงข้อมูลวิดีโอจาก URL...';
+            btnLoad.disabled = true;
+            btnLoad.textContent = '⏳ กำลังดึง...';
+
+            // Guess or generate file name
+            let guessedName = "OneDrive_Video.mp4";
+            try {
+                const u = new URL(convertedUrl);
+                const parts = u.pathname.split('/').filter(Boolean);
+                if (parts.length > 0) {
+                    const last = decodeURIComponent(parts[parts.length - 1]);
+                    if (/\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(last)) {
+                        guessedName = last;
+                    } else if (last && !last.includes(':')) {
+                        guessedName = last + ".mp4";
+                    }
+                }
+            } catch (_) {}
+
+            const customTitle = titleInput.value.trim();
+            const finalVideoName = customTitle ? (customTitle.endsWith('.mp4') ? customTitle : customTitle + '.mp4') : guessedName;
+
+            // Release old blob URL if any
+            if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(state.videoUrl);
+            }
+
+            // Set state
+            state.videoUrl = convertedUrl;
+            state.videoFile = {
+                name: finalVideoName,
+                size: 0,
+                fromUrl: true,
+                rawUrl: rawUrl,
+                streamUrl: convertedUrl
+            };
+
+            if (!titleInput.value) {
+                titleInput.value = finalVideoName.replace(/\.[^/.]+$/, "");
+            }
+
+            return new Promise((resolve) => {
+                let isDone = false;
+
+                const cleanup = () => {
+                    isDone = true;
+                    btnLoad.disabled = false;
+                    btnLoad.textContent = '⚡ ดึงวิดีโอ';
+                    timeVideo.removeEventListener('loadedmetadata', onLoaded);
+                    timeVideo.removeEventListener('error', onError);
+                };
+
+                const timer = setTimeout(() => {
+                    if (!isDone) {
+                        cleanup();
+                        feedback.style.background = 'rgba(234, 179, 8, 0.15)';
+                        feedback.style.border = '1px solid #eab308';
+                        feedback.style.color = '#fef08a';
+                        feedback.innerHTML = '⚠️ ใช้เวลาโหลดค่อนข้างนาน แต่ได้ตั้งค่า URL ไว้แล้ว คุณสามารถกด "เริ่มเข้าสู่หน้าจับเวลา" ด้านล่างเพื่อลองเล่นดูได้ครับ';
+                        resolve(true);
+                    }
+                }, 12000);
+
+                const onLoaded = () => {
+                    if (isDone) return;
+                    clearTimeout(timer);
+                    cleanup();
+
+                    const dur = timeVideo.duration || 0;
+                    const m = Math.floor(dur / 60);
+                    const s = Math.floor(dur % 60);
+                    const durStr = `${m}:${s.toString().padStart(2, '0')}`;
+
+                    feedback.style.background = 'rgba(34, 197, 94, 0.15)';
+                    feedback.style.border = '1px solid var(--accent-green)';
+                    feedback.style.color = 'var(--accent-green)';
+                    feedback.innerHTML = `✅ เชื่อมต่อวิดีโอสำเร็จ! ความยาว: <strong>${durStr} นาที</strong> (${dur.toFixed(2)} วินาที)<br><span style="font-size: 11px; opacity: 0.85;">ลิงก์สตรีม: ${convertedUrl.length > 60 ? convertedUrl.substring(0, 57) + '...' : convertedUrl}</span>`;
+                    resolve(true);
+                };
+
+                const onError = (e) => {
+                    if (isDone) return;
+                    clearTimeout(timer);
+                    cleanup();
+
+                    console.warn("Video load error from URL:", e);
+                    feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+                    feedback.style.border = '1px solid var(--accent-red)';
+                    feedback.style.color = '#fca5a5';
+                    feedback.innerHTML = `❌ ไม่สามารถเล่นวิดีโอจากลิงก์นี้ได้โดยตรง<br>
+                        <div style="margin-top: 4px; font-size: 11px; line-height: 1.5; color: #fecaca;">
+                        • <strong>สำหรับ OneDrive/SharePoint:</strong> ตรวจสอบว่าลิงก์ถูกแชร์แบบ <em>"ทุกคนที่มีลิงก์" (Anyone with the link)</em> หรือตั้งค่าให้อนุญาตการดาวน์โหลด<br>
+                        • หากเป็นบัญชีองค์กรที่มีระบบรักษาความปลอดภัยสูง แนะนำให้กดดาวน์โหลดไฟล์วิดีโอลงเครื่อง แล้วสลับไปที่แท็บ <strong>"📁 เลือกไฟล์จากเครื่อง"</strong> แทนครับ
+                        </div>`;
+                    resolve(false);
+                };
+
+                timeVideo.addEventListener('loadedmetadata', onLoaded, { once: true });
+                timeVideo.addEventListener('error', onError, { once: true });
+
+                timeVideo.src = convertedUrl;
+                timeVideo.load();
+            });
+        }
+
+        // Modal for swapping video in live Dashboard session
+        function openChangeVideoModal() {
+            const modal = document.getElementById('changeVideoModal');
+            const urlInput = document.getElementById('modalVideoUrlInput');
+            const titleInput = document.getElementById('modalVideoTitleInput');
+            const feedback = document.getElementById('modalUrlFeedback');
+
+            if (urlInput) urlInput.value = (state.videoFile && state.videoFile.rawUrl) ? state.videoFile.rawUrl : '';
+            if (titleInput) titleInput.value = (state.videoFile && state.videoFile.name) ? state.videoFile.name.replace(/\.[^/.]+$/, "") : '';
+            if (feedback) feedback.style.display = 'none';
+
+            timeVideo.pause();
+            modal.style.display = 'flex';
+            if (urlInput) urlInput.focus();
+        }
+
+        function closeChangeVideoModal() {
+            document.getElementById('changeVideoModal').style.display = 'none';
+        }
+
+        async function handleConfirmSwapVideo() {
+            const urlInput = document.getElementById('modalVideoUrlInput');
+            const titleInput = document.getElementById('modalVideoTitleInput');
+            const feedback = document.getElementById('modalUrlFeedback');
+            const btn = document.getElementById('btnConfirmSwapVideo');
+
+            const rawUrl = urlInput.value.trim();
+            if (!rawUrl) {
+                alert("กรุณากรอกลิงก์วิดีโอใหม่ครับ");
+                urlInput.focus();
+                return;
+            }
+
+            const convertedUrl = extractAndConvertVideoUrl(rawUrl);
+
+            feedback.style.display = 'block';
+            feedback.style.background = 'rgba(56, 189, 248, 0.15)';
+            feedback.style.border = '1px solid var(--accent-blue)';
+            feedback.style.color = 'var(--accent-blue)';
+            feedback.innerHTML = '⏳ กำลังทดสอบเชื่อมต่อวิดีโอ...';
+            btn.disabled = true;
+
+            let guessedName = "OneDrive_Video.mp4";
+            try {
+                const u = new URL(convertedUrl);
+                const parts = u.pathname.split('/').filter(Boolean);
+                if (parts.length > 0) {
+                    const last = decodeURIComponent(parts[parts.length - 1]);
+                    if (/\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(last)) {
+                        guessedName = last;
+                    } else if (last && !last.includes(':')) {
+                        guessedName = last + ".mp4";
+                    }
+                }
+            } catch (_) {}
+
+            const customTitle = titleInput.value.trim();
+            const finalVideoName = customTitle ? (customTitle.endsWith('.mp4') ? customTitle : customTitle + '.mp4') : guessedName;
+
+            if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(state.videoUrl);
+            }
+
+            state.videoUrl = convertedUrl;
+            state.videoFile = {
+                name: finalVideoName,
+                size: 0,
+                fromUrl: true,
+                rawUrl: rawUrl,
+                streamUrl: convertedUrl
+            };
+
+            let isDone = false;
+            const cleanup = () => {
+                isDone = true;
+                btn.disabled = false;
+                timeVideo.removeEventListener('loadedmetadata', onLoaded);
+                timeVideo.removeEventListener('error', onError);
+            };
+
+            const timer = setTimeout(() => {
+                if (!isDone) {
+                    cleanup();
+                    closeChangeVideoModal();
+                    alert("เปลี่ยน URL เรียบร้อยแล้ว (กำลังโหลดข้อมูลสตรีม...)");
+                }
+            }, 10000);
+
+            const onLoaded = () => {
+                if (isDone) return;
+                clearTimeout(timer);
+                cleanup();
+                closeChangeVideoModal();
+                alert(`✅ สลับวิดีโอสำเร็จ!\nความยาว: ${(timeVideo.duration || 0).toFixed(2)} วินาที\nข้อมูลรอบเวลาที่จับไว้ยังคงอยู่ครบถ้วน`);
+            };
+
+            const onError = () => {
+                if (isDone) return;
+                clearTimeout(timer);
+                cleanup();
+                feedback.style.background = 'rgba(239, 68, 68, 0.15)';
+                feedback.style.border = '1px solid var(--accent-red)';
+                feedback.style.color = '#fca5a5';
+                feedback.innerHTML = '❌ ไม่สามารถโหลดวิดีโอนี้ได้ กรุณาตรวจสอบสิทธิ์การแชร์ของลิงก์ OneDrive/SharePoint';
+            };
+
+            timeVideo.addEventListener('loadedmetadata', onLoaded, { once: true });
+            timeVideo.addEventListener('error', onError, { once: true });
+
+            timeVideo.src = convertedUrl;
+            timeVideo.load();
+        }
+
         // Handles Video selection and updates setup screen UI
         function handleVideoSelect(input) {
             if (input.files && input.files[0]) {
@@ -1867,7 +2325,7 @@
                 state.videoFile = file;
                 
                 // Release old object URL if exists
-                if (state.videoUrl) {
+                if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
                     URL.revokeObjectURL(state.videoUrl);
                 }
                 
@@ -1878,6 +2336,12 @@
                 const fileNameText = document.getElementById('fileNameText');
                 fileNameText.textContent = file.name;
                 fileDummy.classList.add('has-file');
+
+                // Clear URL input & feedback
+                const urlInput = document.getElementById('videoUrlInput');
+                if (urlInput) urlInput.value = '';
+                const urlFeedback = document.getElementById('urlFeedback');
+                if (urlFeedback) urlFeedback.style.display = 'none';
                 
                 // Inject video source
                 timeVideo.src = state.videoUrl;
@@ -1966,10 +2430,25 @@
         }
 
         // Initialize variables and switch from Setup (Phase 1) to Dashboard (Phase 2)
-        function startWorkstudySession() {
-            if (!state.videoFile) {
-                alert("กรุณาเลือกไฟล์วิดีโอก่อนที่จะดำเนินการ!");
-                return;
+        async function startWorkstudySession() {
+            if (!state.videoFile && !state.videoUrl) {
+                const urlInput = document.getElementById('videoUrlInput');
+                if (urlInput && urlInput.value.trim()) {
+                    const loaded = await handleLoadVideoUrl();
+                    if (!loaded) return;
+                } else {
+                    alert("กรุณาเลือกไฟล์วิดีโอ หรือระบุลิงก์วิดีโอ (URL / OneDrive) ก่อนที่จะดำเนินการ!");
+                    return;
+                }
+            }
+
+            if (!state.videoFile && state.videoUrl) {
+                const titleVal = document.getElementById('videoUrlTitleInput')?.value?.trim();
+                state.videoFile = {
+                    name: titleVal ? (titleVal.endsWith('.mp4') ? titleVal : titleVal + '.mp4') : "OneDrive_Video.mp4",
+                    size: 0,
+                    fromUrl: true
+                };
             }
 
             employeeName = document.getElementById('employeeInput').value.trim() || "Employee 1";
@@ -3142,10 +3621,10 @@
 
             if (state.recordedCycles.length === 0) {
                 alert("ไม่มีข้อมูลประวัติการจับเวลาที่จะบันทึก ย้ายกลับสู่หน้าแรก");
-                if (state.videoUrl) {
+                if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
                     URL.revokeObjectURL(state.videoUrl);
-                    state.videoUrl = null;
                 }
+                state.videoUrl = null;
                 location.reload();
                 return;
             }
@@ -3712,10 +4191,10 @@
         }
 
         function confirmDiscardSession() {
-            if (state.videoUrl) {
+            if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
                 URL.revokeObjectURL(state.videoUrl);
-                state.videoUrl = null;
             }
+            state.videoUrl = null;
             location.reload(); // Reloads page back to Setup Screen without saving!
         }
 
@@ -3897,10 +4376,10 @@
             if (state.recordedCycles.length > 0) {
                 openDiscardModal();
             } else {
-                if (state.videoUrl) {
+                if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
                     URL.revokeObjectURL(state.videoUrl);
-                    state.videoUrl = null;
                 }
+                state.videoUrl = null;
                 location.reload();
             }
         }
