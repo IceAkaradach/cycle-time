@@ -1944,20 +1944,20 @@
     <!-- ========================================== -->
     <div class="modal-overlay" id="exportModal">
         <div class="modal-card" style="max-width: 520px;">
-            <div class="modal-title" style="color: #38bdf8; display: flex; align-items: center; justify-content: space-between;">
+            <div class="modal-title" style="color: #0369a1; display: flex; align-items: center; justify-content: space-between;">
                 <span style="display: flex; align-items: center; gap: 8px;">💾 บันทึกและส่งออกข้อมูล (Export to Excel)</span>
-                <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: normal;">4 ชีทครบสมบูรณ์</span>
+                <span style="font-size: 11px; background: #eff6ff; border: 1px solid #93c5fd; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-weight: 600;">4 ชีทครบสมบูรณ์</span>
             </div>
             <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
                 <p style="margin: 0; color: var(--text-muted); font-size: 13px;">
                     ระบบจะสร้างไฟล์ Excel ตรงตามแบบฟอร์ม Time.xlsx 100% พร้อมตาราง TIME MEASUREMENT, ตารางงานมาตรฐาน SWCT พร้อมกราฟแท่ง, ประวัติ Raw Data Log และแผนภาพ YAMAZUMI CHART
                 </p>
 
-                <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 14px;">
-                    <label style="display: block; font-size: 13px; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">
+                <div style="background: #f8fafc; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px;">
+                    <label style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
                         📈 เกณฑ์การดึงเวลาไปพล็อตกราฟ SWCT (Standard Work):
                     </label>
-                    <select id="modalSwctModeSelect" onchange="handleModalSwctModeChange(this.value)" style="width: 100%; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 600; cursor: pointer; outline: none;">
+                    <select id="modalSwctModeSelect" onchange="handleModalSwctModeChange(this.value)" style="width: 100%; background: #ffffff; border: 1px solid #60a5fa; color: #1e3a8a; border-radius: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; cursor: pointer; outline: none;">
                         <option value="min" selected>⚡ เวลาน้อยที่สุดของแต่ละขั้นตอน (Min Time - แนะนำตามหลัก Lean/TPS)</option>
                         <option value="avg">📊 เวลาเฉลี่ยของแต่ละขั้นตอน (Average Time)</option>
                         <option value="max">🔴 เวลามากที่สุดของแต่ละขั้นตอน (Max Time - Worst Case)</option>
@@ -1965,12 +1965,12 @@
                         <option value="worst_round">⏳ รอบที่เวลารวมมากที่สุด (Worst Total Round)</option>
                     </select>
 
-                    <div id="exportPreviewBox" style="margin-top: 12px; padding: 10px 12px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.35); border-radius: 8px; font-size: 12px; color: #cbd5e1;">
+                    <div id="exportPreviewBox" style="margin-top: 12px; padding: 10px 12px; background: #ffffff; border: 1px dashed #93c5fd; border-radius: 8px; font-size: 12px; color: #334155;">
                         <!-- Live preview populated dynamically -->
                     </div>
                 </div>
 
-                <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.5; background: rgba(30, 41, 59, 0.5); padding: 8px 12px; border-radius: 6px;">
+                <div style="font-size: 11.5px; color: #475569; line-height: 1.5; background: #f1f5f9; border: 1px solid #dce4ef; padding: 8px 12px; border-radius: 6px;">
                     💡 <b>ระบบปรับสเกลแกนเวลากราฟอัตโนมัติ:</b> กราฟ SWCT จะคำนวณช่วงเวลาสูงสุดให้สอดคล้องกับ CYCLE TIME จริงอัตโนมัติ (เช่น 135.84s จะขยายแกนเวลาเป็น 160s) ป้องกันกราฟล้นหรือถูกตัดที่ 120 วิ อีกต่อไป
                 </div>
             </div>
@@ -4013,16 +4013,16 @@
 
             box.innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="color:#94a3b8;">เกณฑ์กราฟ:</span>
-                    <b style="color:#38bdf8;">${label}</b>
+                    <span style="color:#475569;">เกณฑ์กราฟ:</span>
+                    <b style="color:#0369a1;">${label}</b>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="color:#94a3b8;">CYCLE TIME รวม:</span>
-                    <b style="color:#34d399; font-size:13.5px;">${totalTime.toFixed(2)} วินาที</b>
+                    <span style="color:#475569;">CYCLE TIME รวม:</span>
+                    <b style="color:#047857; font-size:13.5px;">${totalTime.toFixed(2)} วินาที</b>
                 </div>
                 <div style="display:flex; justify-content:space-between;">
-                    <span style="color:#94a3b8;">สเกลแกนเวลากราฟ:</span>
-                    <b style="color:#fbbf24;">0 ถึง ${maxAxis} วินาที (ช่องละ ${majorUnit}s)</b>
+                    <span style="color:#475569;">สเกลแกนเวลากราฟ:</span>
+                    <b style="color:#b45309;">0 ถึง ${maxAxis} วินาที (ช่องละ ${majorUnit}s)</b>
                 </div>
             `;
         }
