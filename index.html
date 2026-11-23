@@ -4023,8 +4023,8 @@
                                             const valStr = (val !== null && val !== undefined) ? String(val) : '';
 
                                             if (fElem) {
-                                                if (isStr) {
-                                                    c.setAttribute('t', 'str'); // OpenXML: formula returning string MUST use t="str"
+                                                if (isStr || valStr === '') {
+                                                    c.setAttribute('t', 'str'); // OpenXML: formula returning string or blank MUST use t="str"
                                                 } else {
                                                     c.removeAttribute('t'); // Default numeric formula result is number
                                                 }
@@ -4040,10 +4040,14 @@
                                                     isEl.appendChild(tEl);
                                                     c.appendChild(isEl);
                                                 } else {
-                                                    c.removeAttribute('t');
-                                                    const vEl = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'v');
-                                                    vEl.textContent = valStr;
-                                                    c.appendChild(vEl);
+                                                    if (valStr === '') {
+                                                        c.removeAttribute('t');
+                                                    } else {
+                                                        c.removeAttribute('t');
+                                                        const vEl = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'v');
+                                                        vEl.textContent = valStr;
+                                                        c.appendChild(vEl);
+                                                    }
                                                 }
                                             }
                                             return;
@@ -4068,6 +4072,7 @@
                                 const ptsSer1 = [];
                                 let cumTime = 0.0;
                                 const colTotals = new Array(10).fill(0);
+                                const colHasData = new Array(10).fill(false);
                                 let totalMinSum = 0;
                                 let totalMaxSum = 0;
                                 let totalAvgSum = 0;
@@ -4088,8 +4093,9 @@
                                                 validDurs.push(dVal);
                                                 setDomCell(doc1, colLetters[r - 1] + timeRow, dVal.toFixed(2), false);
                                                 colTotals[r - 1] += dVal;
+                                                colHasData[r - 1] = true;
                                             } else {
-                                                setDomCell(doc1, colLetters[r - 1] + timeRow, '', true);
+                                                setDomCell(doc1, colLetters[r - 1] + timeRow, '', false);
                                             }
                                         }
 
@@ -4101,7 +4107,7 @@
 
                                             setDomCell(doc1, 'M' + timeRow, minVal.toFixed(2), false, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MIN(C${timeRow}:L${timeRow}))`);
                                             setDomCell(doc1, 'N' + timeRow, maxVal.toFixed(2), false, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MAX(C${timeRow}:L${timeRow}))`);
-                                            setDomCell(doc1, 'O' + timeRow, flucVal.toFixed(2), false, `IF(N${timeRow}="","",N${timeRow}-M${timeRow})`);
+                                            setDomCell(doc1, 'O' + timeRow, flucVal.toFixed(2), false, `IF(OR(N${timeRow}="",M${timeRow}=""),"",N${timeRow}-M${timeRow})`);
                                             setDomCell(doc1, 'P' + timeRow, avgVal.toFixed(2), false, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",AVERAGE(C${timeRow}:L${timeRow}))`);
 
                                             totalMinSum += minVal;
@@ -4134,7 +4140,7 @@
                                         } else {
                                             setDomCell(doc1, 'M' + timeRow, '', true, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MIN(C${timeRow}:L${timeRow}))`);
                                             setDomCell(doc1, 'N' + timeRow, '', true, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MAX(C${timeRow}:L${timeRow}))`);
-                                            setDomCell(doc1, 'O' + timeRow, '', true, `IF(N${timeRow}="","",N${timeRow}-M${timeRow})`);
+                                            setDomCell(doc1, 'O' + timeRow, '', true, `IF(OR(N${timeRow}="",M${timeRow}=""),"",N${timeRow}-M${timeRow})`);
                                             setDomCell(doc1, 'P' + timeRow, '', true, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",AVERAGE(C${timeRow}:L${timeRow}))`);
 
                                             setDomCell(doc2, 'C' + swctRow, step, true);
@@ -4152,11 +4158,11 @@
                                     setDomCell(doc1, 'A' + uRow, '', true);
                                     setDomCell(doc1, 'B' + uRow, '', true);
                                     for (let cL of colLetters) {
-                                        setDomCell(doc1, cL + uRow, '', true);
+                                        setDomCell(doc1, cL + uRow, '', false);
                                     }
                                     setDomCell(doc1, 'M' + uRow, '', true, `IF(COUNT(C${uRow}:L${uRow})=0,"",MIN(C${uRow}:L${uRow}))`);
                                     setDomCell(doc1, 'N' + uRow, '', true, `IF(COUNT(C${uRow}:L${uRow})=0,"",MAX(C${uRow}:L${uRow}))`);
-                                    setDomCell(doc1, 'O' + uRow, '', true, `IF(N${uRow}="","",N${uRow}-M${uRow})`);
+                                    setDomCell(doc1, 'O' + uRow, '', true, `IF(OR(N${uRow}="",M${uRow}=""),"",N${uRow}-M${uRow})`);
                                     setDomCell(doc1, 'P' + uRow, '', true, `IF(COUNT(C${uRow}:L${uRow})=0,"",AVERAGE(C${uRow}:L${uRow}))`);
                                 }
 
@@ -4170,10 +4176,10 @@
                                 }
 
                                 // Total row on Sheet 1
-                                const activeColTotals = colTotals.filter(tot => tot > 0);
+                                const activeColTotals = colTotals.filter((tot, idx) => colHasData[idx]);
                                 for (let cIdx = 0; cIdx < 10; cIdx++) {
                                     const colC = colLetters[cIdx];
-                                    if (colTotals[cIdx] > 0) {
+                                    if (colHasData[cIdx]) {
                                         setDomCell(doc1, colC + '34', colTotals[cIdx].toFixed(2), false, `IF(COUNT(${colC}5:${colC}33)=0,"",SUM(${colC}5:${colC}33))`);
                                     } else {
                                         setDomCell(doc1, colC + '34', '', true, `IF(COUNT(${colC}5:${colC}33)=0,"",SUM(${colC}5:${colC}33))`);
@@ -4187,12 +4193,12 @@
                                     const avgTotal = activeColTotals.reduce((a, b) => a + b, 0) / activeColTotals.length;
                                     setDomCell(doc1, 'M34', minTotal.toFixed(2), false, 'IF(COUNT(C34:L34)=0,"",MIN(C34:L34))');
                                     setDomCell(doc1, 'N34', maxTotal.toFixed(2), false, 'IF(COUNT(C34:L34)=0,"",MAX(C34:L34))');
-                                    setDomCell(doc1, 'O34', flucTotal.toFixed(2), false, 'IF(N34="","",N34-M34)');
+                                    setDomCell(doc1, 'O34', flucTotal.toFixed(2), false, 'IF(OR(N34="",M34=""),"",N34-M34)');
                                     setDomCell(doc1, 'P34', avgTotal.toFixed(2), false, 'IF(COUNT(C34:L34)=0,"",AVERAGE(C34:L34))');
                                 } else {
                                     setDomCell(doc1, 'M34', '', true, 'IF(COUNT(C34:L34)=0,"",MIN(C34:L34))');
                                     setDomCell(doc1, 'N34', '', true, 'IF(COUNT(C34:L34)=0,"",MAX(C34:L34))');
-                                    setDomCell(doc1, 'O34', '', true, 'IF(N34="","",N34-M34)');
+                                    setDomCell(doc1, 'O34', '', true, 'IF(OR(N34="",M34=""),"",N34-M34)');
                                     setDomCell(doc1, 'P34', '', true, 'IF(COUNT(C34:L34)=0,"",AVERAGE(C34:L34))');
                                 }
 
@@ -4354,90 +4360,49 @@
                                         setDomCell(doc4, 'H25', '', true, "IF('TIME MEASUREMENT'!P34=\"\",\"\",'TIME MEASUREMENT'!P34)");
                                     }
 
-                                    zip.file('xl/worksheets/sheet4.xml', serializer.serializeToString(doc4));
+                                    function preserveWorksheetRoot(origXmlStr, doc) {
+                                        const origMatch = origXmlStr.match(/<worksheet[^>]*>/);
+                                        const origTag = origMatch ? origMatch[0] : '<worksheet>';
+                                        let newStr = new XMLSerializer().serializeToString(doc);
+                                        newStr = newStr.replace(/<\?xml[^>]*\?>\s*/, '');
+                                        newStr = newStr.replace(/<worksheet[^>]*>/, origTag);
+                                        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + newStr;
+                                    }
+
+                                    zip.file('xl/worksheets/sheet4.xml', preserveWorksheetRoot(s4Str, doc4));
 
                                     // Update chart2.xml (YAMAZUMI Stacked Column Chart)
                                     if (zip.file('xl/charts/chart2.xml')) {
-                                        const c2Str = await zip.file('xl/charts/chart2.xml').async('string');
-                                        const docC2 = parser.parseFromString(c2Str, 'application/xml');
-                                        const cNs = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
-                                        const serList = docC2.getElementsByTagNameNS(cNs, 'ser');
-
-                                        for (let i = 0; i < serList.length; i++) {
-                                            const ser = serList[i];
-                                            const fEl = ser.getElementsByTagNameNS(cNs, 'f')[0];
-                                            let rowNum = 5 + i;
-                                            if (fEl && fEl.textContent) {
-                                                const match = fEl.textContent.match(/\$H\$(\d+)/);
-                                                if (match) rowNum = parseInt(match[1], 10);
-                                            }
-                                            const sIdx = rowNum - 5;
-                                            const valEl = ser.getElementsByTagNameNS(cNs, 'val')[0];
-                                            if (valEl) {
-                                                const numRefEl = valEl.getElementsByTagNameNS(cNs, 'numRef')[0];
-                                                const targetParent = numRefEl || valEl;
-                                                const oldNc = targetParent.getElementsByTagNameNS(cNs, 'numCache')[0];
-                                                if (oldNc) targetParent.removeChild(oldNc);
-
-                                                const newNc = docC2.createElementNS(cNs, 'c:numCache');
-                                                const fc = docC2.createElementNS(cNs, 'c:formatCode');
-                                                const pc = docC2.createElementNS(cNs, 'c:ptCount');
-                                                const pt0 = docC2.createElementNS(cNs, 'c:pt');
-                                                pt0.setAttribute('idx', '0');
-                                                const v0 = docC2.createElementNS(cNs, 'c:v');
-
-                                                if (sIdx >= 0 && sIdx < stepPlotVals.length) {
-                                                    fc.textContent = '0.00';
-                                                    pc.setAttribute('val', '2');
-                                                    v0.textContent = stepPlotVals[sIdx].toFixed(2);
-                                                } else {
-                                                    fc.textContent = 'General';
-                                                    pc.setAttribute('val', '2');
-                                                    v0.textContent = '0';
-                                                }
-                                                pt0.appendChild(v0);
-                                                newNc.appendChild(fc);
-                                                newNc.appendChild(pc);
-                                                newNc.appendChild(pt0);
-                                                targetParent.appendChild(newNc);
-                                            }
-
-                                            const catEl = ser.getElementsByTagNameNS(cNs, 'cat')[0];
-                                            if (catEl) {
-                                                const vEl = catEl.getElementsByTagNameNS(cNs, 'v')[0];
-                                                if (vEl) vEl.textContent = `${empName} (${procName})`;
+                                        let chart2Raw = await zip.file('xl/charts/chart2.xml').async('string');
+                                        for (let sIdx = 0; sIdx < 16; sIdx++) {
+                                            const rowNum = 5 + sIdx;
+                                            const val = sIdx < stepPlotVals.length ? stepPlotVals[sIdx] : null;
+                                            const pattern = new RegExp(`(<c:f>YAMA!\\$H\\$${rowNum}:\\$I\\$${rowNum}<\\/c:f>[\\s\\S]*?<c:formatCode>0\\.00<\\/c:formatCode><c:ptCount val="2"\\/>)(?:<c:pt idx="0"><c:v>[^<]*<\\/c:v><\\/c:pt>)?`);
+                                            if (val !== null && val !== undefined) {
+                                                chart2Raw = chart2Raw.replace(pattern, `$1<c:pt idx="0"><c:v>${val.toFixed(2)}</c:v></c:pt>`);
+                                            } else {
+                                                chart2Raw = chart2Raw.replace(pattern, '$1');
                                             }
                                         }
 
-                                        const valAx = docC2.getElementsByTagNameNS(cNs, 'valAx')[0];
-                                        if (valAx) {
-                                            const targetMax = Math.max(30.0, totalSwct * 1.15);
-                                            const unit = targetMax <= 60 ? 5 : (targetMax <= 180 ? 10 : 20);
-                                            const maxVal = Math.ceil(targetMax / unit) * unit;
-                                            const maxEl = valAx.getElementsByTagNameNS(cNs, 'max')[0];
-                                            if (maxEl) maxEl.setAttribute('val', String(maxVal));
-                                            const majEl = valAx.getElementsByTagNameNS(cNs, 'majorUnit')[0];
-                                            if (majEl) majEl.setAttribute('val', String(unit));
-                                        }
-
-                                        zip.file('xl/charts/chart2.xml', serializer.serializeToString(docC2));
+                                        const targetMax2 = Math.max(30.0, totalSwct * 1.15);
+                                        const unit2 = targetMax2 <= 60 ? 5 : (targetMax2 <= 180 ? 10 : 20);
+                                        const maxVal2 = Math.ceil(targetMax2 / unit2) * unit2;
+                                        chart2Raw = chart2Raw.replace(/(<(?:\w+:)?valAx>[\s\S]*?<(?:\w+:)?scaling>[\s\S]*?<(?:\w+:)?max val=")\d+("\s*\/>)/, `$1${maxVal2}$2`);
+                                        chart2Raw = chart2Raw.replace(/(<(?:\w+:)?valAx>[\s\S]*?<(?:\w+:)?majorUnit val=")\d+("\s*\/>)/, `$1${unit2}$2`);
+                                        zip.file('xl/charts/chart2.xml', chart2Raw);
                                     }
                                 }
 
-                                // Clean calcChain to ensure Excel opens without recovery alert
-                                if (zip.file('xl/calcChain.xml')) {
-                                    zip.remove('xl/calcChain.xml');
+                                function preserveSheetRoot(origXmlStr, doc) {
+                                    const origMatch = origXmlStr.match(/<worksheet[^>]*>/);
+                                    const origTag = origMatch ? origMatch[0] : '<worksheet>';
+                                    let newStr = new XMLSerializer().serializeToString(doc);
+                                    newStr = newStr.replace(/<\?xml[^>]*\?>\s*/, '');
+                                    newStr = newStr.replace(/<worksheet[^>]*>/, origTag);
+                                    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + newStr;
                                 }
-                                if (zip.file('[Content_Types].xml')) {
-                                    let ctStr = await zip.file('[Content_Types].xml').async('string');
-                                    ctStr = ctStr.replace(/<Override[^>]*PartName="\/xl\/calcChain\.xml"[^>]*\/>/g, '');
-                                    zip.file('[Content_Types].xml', ctStr);
-                                }
-                                if (zip.file('xl/_rels/workbook.xml.rels')) {
-                                    let relsStr = await zip.file('xl/_rels/workbook.xml.rels').async('string');
-                                    relsStr = relsStr.replace(/<Relationship[^>]*Target="calcChain\.xml"[^>]*\/>/g, '');
-                                    zip.file('xl/_rels/workbook.xml.rels', relsStr);
-                                }
+
                                 if (zip.file('xl/workbook.xml')) {
                                     let wbStr = await zip.file('xl/workbook.xml').async('string');
                                     if (!wbStr.includes('fullCalcOnLoad')) {
@@ -4446,9 +4411,8 @@
                                     }
                                 }
 
-                                const serializer = new XMLSerializer();
-                                zip.file('xl/worksheets/sheet1.xml', serializer.serializeToString(doc1));
-                                zip.file('xl/worksheets/sheet2.xml', serializer.serializeToString(doc2));
+                                zip.file('xl/worksheets/sheet1.xml', preserveSheetRoot(s1Str, doc1));
+                                zip.file('xl/worksheets/sheet2.xml', preserveSheetRoot(s2Str, doc2));
 
                                 const blob = await zip.generateAsync({
                                     type: 'blob',
