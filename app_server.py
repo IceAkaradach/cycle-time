@@ -65,11 +65,12 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                                     if f_elem is None:
                                         f_elem = ET.Element('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}f')
                                         c.insert(0, f_elem)
+                                    f_elem.attrib.clear()
                                     f_elem.text = new_formula
-                                else:
-                                    if f_elem is not None:
-                                        c.remove(f_elem)
-                                        f_elem = None
+                            else:
+                                if f_elem is not None:
+                                    c.remove(f_elem)
+                                    f_elem = None
                             
                             # Remove all children except f_elem
                             for child in list(c):
@@ -275,6 +276,7 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                 # Clear unused rows in Sheet 2 (SWCT)
                 for u_s_idx in range(len(steps), 26):
                     u_swct_row = 7 + u_s_idx * 2
+                    set_cell_dom(tree2, f'A{u_swct_row}', '', is_str=True)
                     set_cell_dom(tree2, f'C{u_swct_row}', '', is_str=True)
                     set_cell_dom(tree2, f'G{u_swct_row}', '', is_str=True)
                     set_cell_dom(tree2, f'EE{u_swct_row}', '', is_str=True)
@@ -539,7 +541,7 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
 
                 wb_xml = files['xl/workbook.xml'].decode('utf-8')
                 if 'fullCalcOnLoad' not in wb_xml:
-                    wb_xml = wb_xml.replace('<calcPr calcId="181029"/>', '<calcPr calcId="181029" fullCalcOnLoad="1"/>')
+                    wb_xml = re.sub(r'<calcPr([^>]*)/?>', r'<calcPr\1 fullCalcOnLoad="1"/>', wb_xml)
 
                 files['xl/worksheets/sheet1.xml'] = ET.tostring(tree1, encoding='utf-8', xml_declaration=True)
                 files['xl/worksheets/sheet2.xml'] = ET.tostring(tree2, encoding='utf-8', xml_declaration=True)

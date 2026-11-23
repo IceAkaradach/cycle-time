@@ -1595,11 +1595,17 @@
             <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
                 <input type="hidden" id="editCycleNo">
                 
-                <div class="form-group">
-                    <label style="color: var(--accent-blue);">ขั้นตอนการทำงาน (Work Step)</label>
-                    <select id="editCycleStepSelect" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer;">
-                        <!-- Options populated dynamically -->
-                    </select>
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-group" style="flex: 2;">
+                        <label style="color: var(--accent-blue);">ขั้นตอนการทำงาน (Work Step)</label>
+                        <select id="editCycleStepSelect" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer;">
+                            <!-- Options populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label style="color: #34d399;">รอบที่ / ชิ้นที่ (Round)</label>
+                        <input type="number" id="editCycleRound" min="1" max="10" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; font-weight: bold; text-align: center;">
+                    </div>
                 </div>
                 
                 <div style="display: flex; gap: 12px;">
@@ -3262,30 +3268,54 @@
         // ฟังก์ชันคำนวณลำดับรอบ (Cycle Round) ของทุกรายการอย่างถูกต้องตามรอบการผลิตจริง
         function updateAllCycleRounds() {
             state.recordedCycles.forEach(c => {
-                if (c.step && !state.uniqueSteps.includes(c.step)) {
-                    state.uniqueSteps.push(c.step);
+                const s = String(c.step || '').trim();
+                if (s && !state.uniqueSteps.includes(s)) {
+                    state.uniqueSteps.push(s);
                 }
             });
 
             let computedRound = 1;
-            let lastStepIdx = -1;
+            const seenStepsInRound = new Set();
+            const firstStepName = state.uniqueSteps.length > 0 ? String(state.uniqueSteps[0]).trim() : null;
+
             state.recordedCycles.forEach((c, idx) => {
-                const currentStepIdx = state.uniqueSteps.indexOf(c.step);
-                // ถ้ารายการนี้มีลำดับขั้นตอนน้อยกว่าหรือเท่ากับขั้นตอนก่อนหน้า แสดงว่าวนจบรอบเดิมและเริ่มรอบใหม่
-                if (idx > 0 && currentStepIdx !== -1 && lastStepIdx !== -1 && currentStepIdx <= lastStepIdx) {
+                if (c.manualRound) {
+                    c.cycleRound = c.manualRound;
+                    computedRound = Math.max(computedRound, c.manualRound);
+                    seenStepsInRound.clear();
+                    seenStepsInRound.add(String(c.step || '').trim());
+                    return;
+                }
+
+                const stepName = String(c.step || '').trim();
+                let isNewRound = false;
+
+                if (idx > 0) {
+                    // หากขั้นตอนนี้เคยทำไปแล้วในรอบปัจจุบัน -> แสดงว่าขึ้นชิ้นใหม่/รอบใหม่
+                    if (seenStepsInRound.has(stepName)) {
+                        isNewRound = true;
+                    } 
+                    // หรือหากวนกลับมาเจอขั้นตอนแรกของ Process Sequence (และรอบนี้มีขั้นตอนอื่นแล้ว) -> เริ่มรอบใหม่
+                    else if (firstStepName && stepName === firstStepName && seenStepsInRound.size > 0) {
+                        isNewRound = true;
+                    }
+                }
+
+                if (isNewRound) {
                     computedRound++;
+                    seenStepsInRound.clear();
                 }
+
                 c.cycleRound = computedRound;
-                if (currentStepIdx !== -1) {
-                    lastStepIdx = currentStepIdx;
-                }
+                seenStepsInRound.add(stepName);
             });
 
             // ซิงค์ตัวนับรอบของ autoSequence กับรายการล่าสุด
             if (state.recordedCycles.length > 0) {
                 const lastCycle = state.recordedCycles[state.recordedCycles.length - 1];
-                const lastIdx = state.uniqueSteps.indexOf(lastCycle.step);
-                if (lastIdx !== -1 && lastIdx === state.uniqueSteps.length - 1) {
+                const lastStepName = String(lastCycle.step || '').trim();
+                const lastUniqueStep = state.uniqueSteps.length > 0 ? String(state.uniqueSteps[state.uniqueSteps.length - 1]).trim() : null;
+                if (lastUniqueStep && lastStepName === lastUniqueStep) {
                     autoSequence.currentCycleRound = (lastCycle.cycleRound || 1) + 1;
                 } else {
                     autoSequence.currentCycleRound = lastCycle.cycleRound || 1;
@@ -3972,6 +4002,9 @@
                                                         fElem = doc.createElementNS('http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'f');
                                                         c.insertBefore(fElem, c.firstChild);
                                                     }
+                                                    fElem.removeAttribute('t');
+                                                    fElem.removeAttribute('ref');
+                                                    fElem.removeAttribute('si');
                                                     fElem.textContent = newFormula;
                                                 } else if (fElem) {
                                                     c.removeChild(fElem);
@@ -4130,6 +4163,7 @@
                                 // Clear unused rows on Sheet 2 (SWCT)
                                 for (let uSIdx = orderedSteps.length; uSIdx < 26; uSIdx++) {
                                     const uSwctRow = 7 + uSIdx * 2;
+                                    setDomCell(doc2, 'A' + uSwctRow, '', true);
                                     setDomCell(doc2, 'C' + uSwctRow, '', true);
                                     setDomCell(doc2, 'G' + uSwctRow, '', true);
                                     setDomCell(doc2, 'EE' + uSwctRow, '', true);
@@ -4403,6 +4437,13 @@
                                     let relsStr = await zip.file('xl/_rels/workbook.xml.rels').async('string');
                                     relsStr = relsStr.replace(/<Relationship[^>]*Target="calcChain\.xml"[^>]*\/>/g, '');
                                     zip.file('xl/_rels/workbook.xml.rels', relsStr);
+                                }
+                                if (zip.file('xl/workbook.xml')) {
+                                    let wbStr = await zip.file('xl/workbook.xml').async('string');
+                                    if (!wbStr.includes('fullCalcOnLoad')) {
+                                        wbStr = wbStr.replace(/<calcPr([^>]*)\/?>/g, '<calcPr$1 fullCalcOnLoad="1"/>');
+                                        zip.file('xl/workbook.xml', wbStr);
+                                    }
                                 }
 
                                 const serializer = new XMLSerializer();
@@ -4706,6 +4747,7 @@
             document.getElementById('editCycleStart').value = cycle.start;
             document.getElementById('editCycleEnd').value = cycle.end;
             document.getElementById('editCycleDuration').value = cycle.duration;
+            document.getElementById('editCycleRound').value = cycle.cycleRound || 1;
             document.getElementById('editCycleNote').value = cycle.note || "";
             
             document.getElementById('editCycleModal').style.display = 'flex';
@@ -4730,6 +4772,7 @@
             const startVal = parseFloat(document.getElementById('editCycleStart').value);
             const endVal = parseFloat(document.getElementById('editCycleEnd').value);
             const stepVal = document.getElementById('editCycleStepSelect').value;
+            const roundVal = parseInt(document.getElementById('editCycleRound').value);
             const noteVal = document.getElementById('editCycleNote').value.trim();
             
             // ตรวจสอบความถูกต้องของค่าที่แก้ไข
@@ -4754,6 +4797,10 @@
             cycle.end = parseFloat(endVal.toFixed(2));
             cycle.duration = parseFloat((endVal - startVal).toFixed(2));
             cycle.step = stepVal;
+            if (!isNaN(roundVal) && roundVal >= 1 && roundVal <= 10) {
+                cycle.manualRound = roundVal;
+                cycle.cycleRound = roundVal;
+            }
             cycle.note = noteVal;
             
             updateAllCycleRounds();
