@@ -530,7 +530,7 @@ class handler(BaseHTTPRequestHandler):
 
             wb_xml = files['xl/workbook.xml'].decode('utf-8')
             if 'fullCalcOnLoad' not in wb_xml:
-                wb_xml = re.sub(r'<calcPr([^>]*)/?>', r'<calcPr\1 fullCalcOnLoad="1"/>', wb_xml)
+                wb_xml = re.sub(r'<calcPr\b[^>]*?/>', r'<calcPr calcId="191029" fullCalcOnLoad="1"/>', wb_xml)
 
             files['xl/worksheets/sheet1.xml'] = ET.tostring(tree1, encoding='utf-8', xml_declaration=True)
             files['xl/worksheets/sheet2.xml'] = ET.tostring(tree2, encoding='utf-8', xml_declaration=True)

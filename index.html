@@ -4441,7 +4441,7 @@
                                 if (zip.file('xl/workbook.xml')) {
                                     let wbStr = await zip.file('xl/workbook.xml').async('string');
                                     if (!wbStr.includes('fullCalcOnLoad')) {
-                                        wbStr = wbStr.replace(/<calcPr([^>]*)\/?>/g, '<calcPr$1 fullCalcOnLoad="1"/>');
+                                        wbStr = wbStr.replace(/<calcPr\b[^>]*?\/>/g, '<calcPr calcId="191029" fullCalcOnLoad="1"/>');
                                         zip.file('xl/workbook.xml', wbStr);
                                     }
                                 }
