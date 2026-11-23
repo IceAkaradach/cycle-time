@@ -7,6 +7,8 @@ import re
 import math
 import xml.etree.ElementTree as ET
 
+MAX_EXPORT_STEPS = 17
+
 def generate_excel_from_template(req, template_path=None):
     if not template_path or not os.path.exists(template_path):
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -81,6 +83,10 @@ def generate_excel_from_template(req, template_path=None):
     emp_val = req.get('employee', '')
     model_val = req.get('model', 'RG21')
     steps = req.get('steps', [])
+    if not isinstance(steps, list):
+        raise ValueError("steps must be an array")
+    if len(steps) > MAX_EXPORT_STEPS:
+        raise ValueError(f"แม่แบบ Excel รองรับสูงสุด {MAX_EXPORT_STEPS} ขั้นตอน")
 
     # Automatically compact runs if columns were skipped (ensure non-empty columns are packed sequentially 1, 2, 3...)
     active_cols = []
@@ -131,14 +137,16 @@ def generate_excel_from_template(req, template_path=None):
     worst_r_idx = 0
     min_r_sum = float('inf')
     max_r_sum = float('-inf')
+    required_count = len(steps)
     for r_idx in range(10):
-        if round_counts[r_idx] > 0:
+        if required_count > 0 and round_counts[r_idx] == required_count:
             if round_sums[r_idx] < min_r_sum:
                 min_r_sum = round_sums[r_idx]
                 best_r_idx = r_idx
             if round_sums[r_idx] > max_r_sum:
                 max_r_sum = round_sums[r_idx]
                 worst_r_idx = r_idx
+    has_complete_round = min_r_sum != float('inf')
 
     col_letters = ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
     pts_ser0 = []
@@ -186,11 +194,11 @@ def generate_excel_from_template(req, template_path=None):
                     plot_val = avg_val
                     target_col = 'P'
                 elif swct_plot_mode == 'best_round':
-                    val_at_best = runs[best_r_idx] if best_r_idx < len(runs) and runs[best_r_idx] is not None else min_val
+                    val_at_best = runs[best_r_idx] if has_complete_round and best_r_idx < len(runs) and runs[best_r_idx] is not None else min_val
                     plot_val = float(val_at_best)
                     target_col = col_letters[best_r_idx] if best_r_idx < len(col_letters) else 'M'
                 elif swct_plot_mode == 'worst_round':
-                    val_at_worst = runs[worst_r_idx] if worst_r_idx < len(runs) and runs[worst_r_idx] is not None else max_val
+                    val_at_worst = runs[worst_r_idx] if has_complete_round and worst_r_idx < len(runs) and runs[worst_r_idx] is not None else max_val
                     plot_val = float(val_at_worst)
                     target_col = col_letters[worst_r_idx] if worst_r_idx < len(col_letters) else 'M'
                 elif swct_plot_mode.startswith('round_'):

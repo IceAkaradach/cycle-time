@@ -1790,25 +1790,49 @@
 
             try {
                 const videoFileName = state.videoFile ? state.videoFile.name : "ขั้นตอน 9.mov";
+                let videoToken = null;
+                const localApiBase = window.location.protocol.startsWith('http') ? '' : 'http://localhost:8765';
+
+                if (state.videoFile instanceof File) {
+                    const uploadResponse = await fetch(`${localApiBase}/api/upload_video`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/octet-stream',
+                            'X-Video-Name': encodeURIComponent(state.videoFile.name)
+                        },
+                        body: state.videoFile
+                    });
+                    const uploadResult = await uploadResponse.json();
+                    if (!uploadResponse.ok || !uploadResult.video_token) {
+                        throw new Error(uploadResult.error || `อัปโหลดวิดีโอไม่สำเร็จ (${uploadResponse.status})`);
+                    }
+                    videoToken = uploadResult.video_token;
+                } else if (state.videoFile && state.videoFile.fromUrl) {
+                    throw new Error("Auto Track รองรับไฟล์วิดีโอจากเครื่องเท่านั้น กรุณาดาวน์โหลดวิดีโอ URL แล้วเลือกไฟล์จากเครื่องก่อน");
+                }
                 
                 // คัดกรองรอบที่ 1 ที่ผู้ใช้จับไว้ (ถ้ามี)
                 const firstRoundCycles = state.recordedCycles.filter(c => (c.cycleRound || 1) === 1);
 
-                const apiUrl = window.location.protocol.startsWith('http')
-                    ? '/api/analyze_cycles'
-                    : 'http://localhost:8000/api/analyze_cycles';
+                const apiUrl = `${localApiBase}/api/analyze_cycles`;
 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         video_name: videoFileName,
+                        video_token: videoToken,
                         first_round_cycles: firstRoundCycles
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                    let serverMessage = '';
+                    try {
+                        const errorBody = await response.json();
+                        serverMessage = errorBody.error || '';
+                    } catch (_) {}
+                    throw new Error(serverMessage || `Server returned ${response.status}: ${response.statusText}`);
                 }
 
                 const result = await response.json();
@@ -1835,7 +1859,7 @@
                 }
             } catch (err) {
                 console.error("Failed to connect to Python backend:", err);
-                alert("⚠️ ไม่สามารถเชื่อมต่อกับ Python Server ได้\n\nวิธีแก้ไข: กรุณาเปิด Terminal และรันคำสั่ง:\npython app_server.py\nจากนั้นลองกดใหม่อีกครั้งครับ");
+                alert(`⚠️ Auto Track ไม่สำเร็จ\n\n${err.message || err}\n\nหาก Server ยังไม่ทำงาน กรุณารันคำสั่ง: python3 app_server.py`);
             } finally {
                 if (btn) {
                     btn.innerHTML = originalText;
@@ -3483,15 +3507,18 @@
                         count++;
                     }
                 });
-                if (count > 0 && rTotal < minRoundTotal) {
+                const isCompleteRound = orderedSteps.length > 0 && count === orderedSteps.length;
+                if (isCompleteRound && rTotal < minRoundTotal) {
                     minRoundTotal = rTotal;
                     bestRound = r;
                 }
-                if (count > 0 && rTotal > maxRoundTotal) {
+                if (isCompleteRound && rTotal > maxRoundTotal) {
                     maxRoundTotal = rTotal;
                     worstRound = r;
                 }
             }
+
+            const hasCompleteRound = Number.isFinite(minRoundTotal);
 
             orderedSteps.forEach(s => {
                 const stats = stepStats[s];
@@ -3501,9 +3528,9 @@
                 } else if (mode === 'max') {
                     val = stats.maxVal;
                 } else if (mode === 'best_round') {
-                    val = (stepMatrix[s][bestRound] !== undefined && stepMatrix[s][bestRound] !== null) ? stepMatrix[s][bestRound] : stats.minVal;
+                    val = hasCompleteRound ? stepMatrix[s][bestRound] : stats.minVal;
                 } else if (mode === 'worst_round') {
-                    val = (stepMatrix[s][worstRound] !== undefined && stepMatrix[s][worstRound] !== null) ? stepMatrix[s][worstRound] : stats.maxVal;
+                    val = hasCompleteRound ? stepMatrix[s][worstRound] : stats.maxVal;
                 } else if (mode && mode.startsWith('round_')) {
                     const targetR = parseInt(mode.replace('round_', ''));
                     val = (stepMatrix[s][targetR] !== undefined && stepMatrix[s][targetR] !== null) ? stepMatrix[s][targetR] : stats.minVal;
@@ -3892,11 +3919,17 @@
 
                 // 1. Build true 2D Round Matrix based on actual cycleRound
                 const { orderedSteps, maxRound, stepMatrix } = buildCycleRoundMatrix();
+                const MAX_EXPORT_STEPS = 17;
+                if (orderedSteps.length > MAX_EXPORT_STEPS) {
+                    alert(`ไม่สามารถ Export ได้: แม่แบบ Excel รองรับสูงสุด ${MAX_EXPORT_STEPS} ขั้นตอน แต่ขณะนี้มี ${orderedSteps.length} ขั้นตอน\nกรุณารวม/ลบขั้นตอนให้เหลือไม่เกิน ${MAX_EXPORT_STEPS} ขั้นตอน`);
+                    return;
+                }
                 const mode = state.swctPlotMode || 'min';
                 const { stepValues, totalTime, bestRound, worstRound } = getSwctStepValues(orderedSteps, stepMatrix, maxRound, mode);
                 const { maxAxis, majorUnit } = calculateChartAxis(totalTime);
 
-                const todayStr = new Date().toISOString().split('T')[0];
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 const parts = todayStr.split('-');
                 const shortDateStr = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0].slice(2)}` : todayStr;
                 const empName = state.recordedCycles.length > 0 ? state.recordedCycles[0].employee : (employeeName || "Employee 1");
@@ -4820,6 +4853,8 @@
                             const cEnd = parseFloat(row[4]);
                             const cDuration = parseFloat(row[5]);
                             const cNote = String(row[6] || "").trim();
+                            const roundMatch = cNote.match(/รอบที่\s*(\d+)/);
+                            const cRound = roundMatch ? parseInt(roundMatch[1], 10) : null;
                             
                             if (isNaN(cStart) || isNaN(cEnd) || isNaN(cDuration)) continue;
                             if (cStart < 0 || cEnd < cStart) continue;
@@ -4831,7 +4866,8 @@
                                 start: cStart,
                                 end: cEnd,
                                 duration: cDuration,
-                                note: cNote
+                                note: cNote,
+                                ...(cRound && cRound >= 1 && cRound <= 10 ? { cycleRound: cRound, manualRound: cRound } : {})
                             });
                             
                             if (cStep) {

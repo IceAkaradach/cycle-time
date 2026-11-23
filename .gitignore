@@ -33,6 +33,8 @@ Thumbs.db
 *.log
 test_*.xlsx
 test_*.py
+!tests/
+!tests/test_*.py
 Time.xlsx.bak
 ~$*.xlsx
 

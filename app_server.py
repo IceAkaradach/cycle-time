@@ -6,26 +6,70 @@ import http.server
 import socketserver
 import json
 import os
-import math
+import tempfile
+import uuid
+from urllib.parse import unquote
 import cv2
 import numpy as np
 
-PORT = 8000
+PORT = int(os.environ.get("PORT", "8765"))
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024 * 1024
+UPLOADS = {}
 
 class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         # Allow CORS
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Video-Name')
         super().end_headers()
 
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
 
+    def do_GET(self):
+        if self.path == '/api/health':
+            self.send_json(200, {"service": "cycle-time", "status": "ok"})
+            return
+        super().do_GET()
+
     def do_POST(self):
-        if self.path == '/api/export_template_excel':
+        if self.path == '/api/upload_video':
+            content_length = int(self.headers.get('Content-Length', 0))
+            original_name = os.path.basename(unquote(self.headers.get('X-Video-Name', 'video.mp4')))
+            extension = os.path.splitext(original_name)[1].lower()
+            if extension not in ('.mov', '.mp4', '.m4v', '.avi', '.mkv', '.webm'):
+                self.send_json(400, {"error": "ชนิดไฟล์วิดีโอไม่รองรับ"})
+                return
+            if content_length <= 0 or content_length > MAX_UPLOAD_BYTES:
+                self.send_json(413, {"error": "ไฟล์วิดีโอว่างหรือมีขนาดเกิน 4 GB"})
+                return
+
+            token = uuid.uuid4().hex
+            target = os.path.join(tempfile.gettempdir(), f"cycle-time-{token}{extension}")
+            remaining = content_length
+            try:
+                with open(target, 'wb') as output:
+                    while remaining:
+                        chunk = self.rfile.read(min(1024 * 1024, remaining))
+                        if not chunk:
+                            raise ValueError("ข้อมูลวิดีโอสิ้นสุดก่อนครบขนาดที่ระบุ")
+                        output.write(chunk)
+                        remaining -= len(chunk)
+                UPLOADS[token] = target
+                self.send_json(200, {"success": True, "video_token": token})
+            except ValueError as e:
+                if os.path.exists(target):
+                    os.remove(target)
+                self.send_json(400, {"error": str(e)})
+                return
+            except Exception as e:
+                if os.path.exists(target):
+                    os.remove(target)
+                self.send_json(400, {"error": str(e)})
+            return
+        elif self.path == '/api/export_template_excel':
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length)
             try:
@@ -41,13 +85,14 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(excel_bytes)
                 print(f"📊 ส่งออกไฟล์ Excel สำเร็จตามแม่แบบ Time.xlsx 100% พร้อมกราฟ SWCT และ YAMAZUMI!")
                 return
+            except ValueError as e:
+                self.send_json(400, {"error": str(e)})
+                return
             except Exception as e:
                 print(f"❌ Error Exporting Excel: {e}")
                 import traceback
                 traceback.print_exc()
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(e)}).encode())
+                self.send_json(500, {"error": "ไม่สามารถสร้างไฟล์ Excel ได้"})
                 return
         elif self.path == '/api/analyze_cycles':
             content_length = int(self.headers.get('Content-Length', 0))
@@ -56,50 +101,58 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 req = json.loads(post_data.decode('utf-8'))
                 video_name = req.get('video_name')
+                video_token = req.get('video_token')
                 first_round_cycles = req.get('first_round_cycles', []) # รายการของรอบที่ 1 ที่ผู้ใช้จับไว้
                 
                 print(f"\n📡 ได้รับคำสั่งวิเคราะห์วิดีโอ: {video_name}")
                 print(f"📌 ข้อมูลรอบที่ 1 ที่ส่งมา: {len(first_round_cycles)} ขั้นตอน")
 
-                # ตรวจสอบไฟล์วิดีโอในโฟลเดอร์
-                target_video = None
-                for fname in os.listdir('.'):
-                    if fname.endswith(('.mov', '.mp4')) and video_name and (video_name in fname or fname in video_name):
-                        target_video = fname
-                        break
-                
-                if not target_video:
-                    # ถ้าหาไม่เจอ ให้ลองหาไฟล์ .mov หรือ .mp4 ขนาดใหญ่สุดในโฟลเดอร์
-                    videos = [f for f in os.listdir('.') if f.endswith(('.mov', '.mp4'))]
-                    if videos:
-                        target_video = sorted(videos, key=lambda x: os.path.getsize(x), reverse=True)[0]
+                target_video = UPLOADS.pop(video_token, None) if video_token else None
+                if not target_video and video_name:
+                    candidate = os.path.abspath(os.path.basename(video_name))
+                    if os.path.isfile(candidate) and candidate.lower().endswith(('.mov', '.mp4', '.m4v', '.avi', '.mkv', '.webm')):
+                        target_video = candidate
 
                 if not target_video:
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"error": "ไม่พบไฟล์วิดีโอในโฟลเดอร์"}).encode())
+                    self.send_json(404, {"error": "ไม่พบวิดีโอที่เลือก กรุณาเลือกหรืออัปโหลดไฟล์อีกครั้ง"})
                     return
 
                 print(f"🎬 กำลังประมวลผลไฟล์: {target_video}")
 
                 # ประมวลผลและสร้างรอบเวลาที่เหลือ
-                result_cycles = run_motion_tracking(target_video, first_round_cycles)
+                try:
+                    result_cycles = run_motion_tracking(target_video, first_round_cycles)
+                finally:
+                    if video_token and os.path.exists(target_video):
+                        os.remove(target_video)
 
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": True, "cycles": result_cycles}, ensure_ascii=False).encode('utf-8'))
 
+            except ValueError as e:
+                print(f"❌ Invalid analysis request: {e}")
+                self.send_json(422, {"error": str(e)})
             except Exception as e:
                 print(f"❌ Error: {e}")
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(e)}).encode())
+                self.send_json(500, {"error": "เกิดข้อผิดพลาดระหว่างวิเคราะห์วิดีโอ"})
         else:
             super().do_POST()
 
+    def send_json(self, status, payload):
+        body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
 def run_motion_tracking(video_file, first_round):
     cap = cv2.VideoCapture(video_file)
+    if not cap.isOpened():
+        cap.release()
+        raise ValueError("ไม่สามารถเปิดวิดีโอได้ อาจเป็นไฟล์เสียหรือ codec ไม่รองรับ")
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     video_dur = total_frames / fps
@@ -108,13 +161,18 @@ def run_motion_tracking(video_file, first_round):
 
     # ถ้ามี cached timeline ให้ใช้ก่อนเพื่อความเร็วสูง
     timeline = []
-    cache_file = "full_mov_timeline.json" if "ขั้นตอน 9" in video_file else None
-    if cache_file and os.path.exists(cache_file):
+    cache_file = "full_mov_timeline.json" if os.path.basename(video_file) == "ขั้นตอน 9.mov" else None
+    cache_is_fresh = cache_file and os.path.exists(cache_file) and os.path.getmtime(cache_file) >= os.path.getmtime(video_file)
+    if cache_is_fresh:
         with open(cache_file, "r", encoding="utf-8") as f:
             timeline = json.load(f)
+        cap.release()
     else:
         # สแกนสด
         ret, prev = cap.read()
+        if not ret or prev is None:
+            cap.release()
+            raise ValueError("วิดีโอไม่มีเฟรมที่อ่านได้")
         prev_gray = cv2.GaussianBlur(cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY), (9, 9), 0)
         fc = 0
         step = 6
@@ -132,6 +190,9 @@ def run_motion_tracking(video_file, first_round):
             timeline.append({"time": cur_sec, "energy": {"pick_main": float(np.mean(roi) / 255.0 * 100.0)}})
             prev_gray = gray
         cap.release()
+
+    if not timeline:
+        raise ValueError("วิดีโอสั้นเกินไปหรือไม่พบเฟรมสำหรับวิเคราะห์")
 
     times = np.array([p["time"] for p in timeline])
     pick_e = np.array([p["energy"]["pick_main"] for p in timeline])
@@ -151,7 +212,9 @@ def run_motion_tracking(video_file, first_round):
         start_anchor = first_round[0].get("start", 178.27)
 
     steps_template = [c["step"] for c in first_round]
-    durations_template = [c.get("duration", 5.0) for c in first_round]
+    durations_template = [float(c.get("duration", 5.0)) for c in first_round]
+    if any(not np.isfinite(d) or d <= 0 for d in durations_template):
+        raise ValueError("ระยะเวลาของทุกขั้นตอนในรอบแรกต้องเป็นตัวเลขมากกว่า 0")
     total_template_dur = sum(durations_template) or 60.0
     ratios = [d / total_template_dur for d in durations_template]
 
@@ -212,5 +275,6 @@ if __name__ == '__main__':
     HOST = os.environ.get("HOST", "127.0.0.1")
     print(f"🚀 เริ่มรัน Cycle Time Server บน http://{HOST}:{PORT}")
     print(f"👉 เปิดเบราว์เซอร์ไปที่: http://{HOST}:{PORT}/index.html")
-    server = socketserver.TCPServer((HOST, PORT), CycleTimeHandler)
+    server = socketserver.ThreadingTCPServer((HOST, PORT), CycleTimeHandler)
+    server.daemon_threads = True
     server.serve_forever()
