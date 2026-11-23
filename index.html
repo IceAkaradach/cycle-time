@@ -1651,11 +1651,11 @@
         <div class="modal-card" style="max-width: 520px;">
             <div class="modal-title" style="color: #38bdf8; display: flex; align-items: center; justify-content: space-between;">
                 <span style="display: flex; align-items: center; gap: 8px;">💾 บันทึกและส่งออกข้อมูล (Export to Excel)</span>
-                <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: normal;">3 ชีทครบสมบูรณ์</span>
+                <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: normal;">4 ชีทครบสมบูรณ์</span>
             </div>
             <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
                 <p style="margin: 0; color: var(--text-muted); font-size: 13px;">
-                    ระบบจะสร้างไฟล์ Excel ตรงตามแบบฟอร์ม Time.xlsx 100% พร้อมตาราง TIME MEASUREMENT, ตารางงานมาตรฐาน SWCT พร้อมกราฟแท่ง และประวัติ Raw Data Log
+                    ระบบจะสร้างไฟล์ Excel ตรงตามแบบฟอร์ม Time.xlsx 100% พร้อมตาราง TIME MEASUREMENT, ตารางงานมาตรฐาน SWCT พร้อมกราฟแท่ง, ประวัติ Raw Data Log และแผนภาพ YAMAZUMI CHART
                 </p>
 
                 <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 14px;">
@@ -3299,13 +3299,19 @@
         function buildCycleRoundMatrix() {
             updateAllCycleRounds();
 
-            // ลำดับขั้นตอนยึดตาม state.uniqueSteps เป็นหลัก
-            const orderedSteps = [...state.uniqueSteps];
+            // ลำดับขั้นตอนยึดตาม state.uniqueSteps เป็นหลัก (Trim และกรองค่าว่าง)
+            const orderedSteps = [...state.uniqueSteps.map(s => String(s || '').trim()).filter(Boolean)];
             state.recordedCycles.forEach(c => {
-                if (c.step && !orderedSteps.includes(c.step)) {
-                    orderedSteps.push(c.step);
+                const stepName = String(c.step || '').trim();
+                if (stepName && !orderedSteps.includes(stepName)) {
+                    orderedSteps.push(stepName);
                 }
             });
+
+            // ป้องกันกรณี orderedSteps ว่างเปล่าแต่มีรอบเวลาที่จับได้
+            if (orderedSteps.length === 0 && state.recordedCycles.length > 0) {
+                orderedSteps.push(workStepName ? String(workStepName).trim() : "Step 1");
+            }
 
             // ค้นหารอบที่มีข้อมูลจริงทั้งหมด เรียงลำดับจากน้อยไปมาก
             const distinctRounds = [...new Set(state.recordedCycles.map(c => c.cycleRound || 1))].sort((a, b) => a - b);
@@ -3325,11 +3331,15 @@
             });
 
             state.recordedCycles.forEach(c => {
+                let stepName = String(c.step || '').trim();
+                if (!stepName || !stepMatrix[stepName]) {
+                    stepName = orderedSteps[0] || "Step 1";
+                }
                 const r = c.cycleRound || 1;
                 const colNum = roundToColMap[r] || r;
-                if (colNum <= 10 && stepMatrix[c.step]) {
+                if (colNum <= 10 && stepMatrix[stepName]) {
                     // หากขั้นตอนเดียวกันถูกบันทึกซ้ำในรอบเดิม ให้บวกเวลารวมเข้าด้วยกัน
-                    stepMatrix[c.step][colNum] = (stepMatrix[c.step][colNum] || 0) + c.duration;
+                    stepMatrix[stepName][colNum] = (stepMatrix[stepName][colNum] || 0) + (c.duration || 0);
                 }
             });
 
@@ -3777,13 +3787,23 @@
         function finishWorkstudySession() {
             timeVideo.pause();
 
-            if (state.recordedCycles.length === 0) {
-                alert("ไม่มีข้อมูลประวัติการจับเวลาที่จะบันทึก ย้ายกลับสู่หน้าแรก");
-                if (state.videoUrl && state.videoUrl.startsWith('blob:')) {
-                    URL.revokeObjectURL(state.videoUrl);
+            // หากกำลังกดจับเวลาค้างอยู่ (กด START CYCLE แต่ยังไม่ได้กด SAVE CYCLE) ให้บันทึกจบรอบให้อัตโนมัติ ป้องกันข้อมูลตกหล่น
+            if (state.startTime !== null) {
+                const endTime = timeVideo.currentTime;
+                if (endTime > state.startTime) {
+                    const cycleTime = endTime - state.startTime;
+                    let note = new Date().toLocaleString('th-TH');
+                    recordNewCycle(state.startTime, endTime, cycleTime, note);
                 }
-                state.videoUrl = null;
-                location.reload();
+                state.startTime = null;
+                btnAction.textContent = "START CYCLE";
+                btnAction.classList.remove('active-capture');
+                hudStartVal.style.display = 'none';
+                hudCurrentCycleVal.style.display = 'none';
+            }
+
+            if (state.recordedCycles.length === 0) {
+                alert("ยังไม่มีข้อมูลรอบเวลาที่บันทึกไว้ในระบบ กรุณากด 'START CYCLE' (หรือเคาะ Spacebar) เพื่อจับเวลาอย่างน้อย 1 ขั้นตอนก่อนบันทึกครับ");
                 return;
             }
 
@@ -4078,6 +4098,18 @@
 
                                             setDomCell(doc2, 'EE' + swctRow, cumTime.toFixed(2), false);
                                             cumTime += plotVal;
+                                        } else {
+                                            setDomCell(doc1, 'M' + timeRow, '', true, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MIN(C${timeRow}:L${timeRow}))`);
+                                            setDomCell(doc1, 'N' + timeRow, '', true, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",MAX(C${timeRow}:L${timeRow}))`);
+                                            setDomCell(doc1, 'O' + timeRow, '', true, `IF(N${timeRow}="","",N${timeRow}-M${timeRow})`);
+                                            setDomCell(doc1, 'P' + timeRow, '', true, `IF(COUNT(C${timeRow}:L${timeRow})=0,"",AVERAGE(C${timeRow}:L${timeRow}))`);
+
+                                            setDomCell(doc2, 'C' + swctRow, step, true);
+                                            setDomCell(doc2, 'G' + swctRow, '', true, `IF('TIME MEASUREMENT'!M${timeRow}="","",'TIME MEASUREMENT'!M${timeRow})`);
+                                            setDomCell(doc2, 'EE' + swctRow, cumTime.toFixed(2), false);
+
+                                            ptsSer0.push({ idx: chartIdx, val: cumTime });
+                                            ptsSer1.push({ idx: chartIdx, val: 0.0 });
                                         }
                                     }
                                 });
@@ -4500,8 +4532,41 @@
                 const wsSwct = XLSX.utils.aoa_to_sheet(swctRows);
                 XLSX.utils.book_append_sheet(wb, wsSwct, "SWCT");
 
+                // Add Raw Data Log Sheet to SheetJS export
+                const rawLogRows = [
+                    ["No.", "Employee", "Work Step", "Start Time (sec)", "End Time (sec)", "Cycle Time (sec)", "Note"]
+                ];
+                state.recordedCycles.forEach((c, idx) => {
+                    rawLogRows.push([
+                        idx + 1,
+                        c.employee || empName,
+                        c.step || "",
+                        c.start !== undefined ? Number(c.start).toFixed(2) : "",
+                        c.end !== undefined ? Number(c.end).toFixed(2) : "",
+                        c.duration !== undefined ? Number(c.duration).toFixed(2) : "",
+                        c.note || (c.cycleRound ? `รอบที่ ${c.cycleRound}` : "")
+                    ]);
+                });
+                const wsRaw = XLSX.utils.aoa_to_sheet(rawLogRows);
+                XLSX.utils.book_append_sheet(wb, wsRaw, "Raw Data Log");
+
+                // Add YAMA Sheet to SheetJS export
+                const yamaRows = [
+                    ["YAMAZUMI CHART", "", "", "", "", "", "", "LINE", "", "PROCESS", "", "", "", "", "", "MAN", "", "", "BEFORE KAIZEN", "", "", "DATE", "", "", "PREPARED"],
+                    ["", "", "", "", "", "", "", modelName, "", procName, "", "", "", "", "", empName, "", "", "AFTER", "", "", shortDateStr],
+                    [],
+                    ["NO", "", "ELEMENT", "", "", "", "", "TIME (sec.)", "", "", "", "", "", "", "", "", "", "", "", "", "FIND OUT PROBLEM"],
+                    ["CYCLE TIME"]
+                ];
+                orderedSteps.forEach((step, sIdx) => {
+                    const plotVal = stepValues[step] !== undefined ? stepValues[step] : 0;
+                    yamaRows.push(["", sIdx + 1, step, "", "", "", "", parseFloat(plotVal.toFixed(2))]);
+                });
+                const wsYama = XLSX.utils.aoa_to_sheet(yamaRows);
+                XLSX.utils.book_append_sheet(wb, wsYama, "YAMA");
+
                 XLSX.writeFile(wb, filename);
-                alert(`✅ ส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\nมีชีทครบถ้วนครับ`);
+                alert(`✅ ส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\nครบทั้ง 4 ชีทครับ`);
             } catch (err) {
                 console.error("Export Excel Error:", err);
                 alert("เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel: " + err.message);
@@ -4727,47 +4792,76 @@
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     
-                    const sheetName = "Raw Data Log";
-                    if (!workbook.SheetNames.includes(sheetName)) {
-                        alert(`ไฟล์ที่อัปโหลดไม่รองรับ! ไม่พบแผ่นงาน "${sheetName}"`);
+                    let importedCycles = [];
+                    const uniqueStepsSet = new Set();
+
+                    if (workbook.SheetNames.includes("Raw Data Log")) {
+                        const worksheet = workbook.Sheets["Raw Data Log"];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length < 6) continue;
+                            
+                            const cNo = parseInt(row[0]) || (importedCycles.length + 1);
+                            const cEmployee = String(row[1] || "").trim();
+                            const cStep = String(row[2] || "").trim();
+                            const cStart = parseFloat(row[3]);
+                            const cEnd = parseFloat(row[4]);
+                            const cDuration = parseFloat(row[5]);
+                            const cNote = String(row[6] || "").trim();
+                            
+                            if (isNaN(cStart) || isNaN(cEnd) || isNaN(cDuration)) continue;
+                            if (cStart < 0 || cEnd < cStart) continue;
+                            
+                            importedCycles.push({
+                                no: cNo,
+                                employee: cEmployee || "Employee 1",
+                                step: cStep || "Assembly",
+                                start: cStart,
+                                end: cEnd,
+                                duration: cDuration,
+                                note: cNote
+                            });
+                            
+                            if (cStep) {
+                                uniqueStepsSet.add(cStep);
+                            }
+                        }
+                    } else if (workbook.SheetNames.includes("TIME MEASUREMENT")) {
+                        // Fallback: ดึงข้อมูลจากชีท TIME MEASUREMENT
+                        const worksheet = workbook.Sheets["TIME MEASUREMENT"];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        const empFromHeader = (jsonData[1] && jsonData[1][12]) ? String(jsonData[1][12]).trim() : "Employee 1";
+                        let synthNo = 1;
+                        let simTime = 0.0;
+                        for (let i = 4; i < Math.min(jsonData.length, 33); i++) {
+                            const row = jsonData[i];
+                            if (!row || !row[1]) continue;
+                            const stepName = String(row[1]).trim();
+                            if (!stepName || stepName === "TOTAL") continue;
+                            uniqueStepsSet.add(stepName);
+                            for (let c = 2; c <= 11; c++) {
+                                const dur = parseFloat(row[c]);
+                                if (!isNaN(dur) && dur > 0) {
+                                    const rNum = c - 1;
+                                    importedCycles.push({
+                                        no: synthNo++,
+                                        cycleRound: rNum,
+                                        employee: empFromHeader,
+                                        step: stepName,
+                                        start: parseFloat(simTime.toFixed(2)),
+                                        end: parseFloat((simTime + dur).toFixed(2)),
+                                        duration: parseFloat(dur.toFixed(2)),
+                                        note: `รอบที่ ${rNum}`
+                                    });
+                                    simTime += dur;
+                                }
+                            }
+                        }
+                    } else {
+                        alert(`ไฟล์ที่อัปโหลดไม่รองรับ! ต้องมีแผ่นงาน "Raw Data Log" หรือ "TIME MEASUREMENT"`);
                         input.value = "";
                         return;
-                    }
-                    
-                    const worksheet = workbook.Sheets[sheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    
-                    const importedCycles = [];
-                    const uniqueStepsSet = new Set();
-                    
-                    for (let i = 1; i < jsonData.length; i++) {
-                        const row = jsonData[i];
-                        if (!row || row.length < 6) continue;
-                        
-                        const cNo = parseInt(row[0]);
-                        const cEmployee = String(row[1] || "").trim();
-                        const cStep = String(row[2] || "").trim();
-                        const cStart = parseFloat(row[3]);
-                        const cEnd = parseFloat(row[4]);
-                        const cDuration = parseFloat(row[5]);
-                        const cNote = String(row[6] || "").trim();
-                        
-                        if (isNaN(cStart) || isNaN(cEnd) || isNaN(cDuration)) continue;
-                        if (cStart < 0 || cEnd < cStart) continue;
-                        
-                        importedCycles.push({
-                            no: cNo,
-                            employee: cEmployee || "Employee 1",
-                            step: cStep || "Assembly",
-                            start: cStart,
-                            end: cEnd,
-                            duration: cDuration,
-                            note: cNote
-                        });
-                        
-                        if (cStep) {
-                            uniqueStepsSet.add(cStep);
-                        }
                     }
                     
                     if (importedCycles.length === 0) {

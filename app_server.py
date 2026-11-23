@@ -247,6 +247,19 @@ class CycleTimeHandler(http.server.SimpleHTTPRequestHandler):
 
                             set_cell_dom(tree2, f'EE{swct_row}', f'{cum_time:.2f}', is_str=False)
                             cum_time += plot_val
+                        else:
+                            set_cell_dom(tree1, f'M{time_row}', '', is_str=True, new_formula=f'IF(COUNT(C{time_row}:L{time_row})=0,"",MIN(C{time_row}:L{time_row}))')
+                            set_cell_dom(tree1, f'N{time_row}', '', is_str=True, new_formula=f'IF(COUNT(C{time_row}:L{time_row})=0,"",MAX(C{time_row}:L{time_row}))')
+                            set_cell_dom(tree1, f'O{time_row}', '', is_str=True, new_formula=f'IF(N{time_row}="","",N{time_row}-M{time_row})')
+                            set_cell_dom(tree1, f'P{time_row}', '', is_str=True, new_formula=f'IF(COUNT(C{time_row}:L{time_row})=0,"",AVERAGE(C{time_row}:L{time_row}))')
+
+                            set_cell_dom(tree2, f'C{swct_row}', step_name, is_str=True)
+                            set_cell_dom(tree2, f'G{swct_row}', '', is_str=True, new_formula=f"IF('TIME MEASUREMENT'!M{time_row}=\"\",\"\",'TIME MEASUREMENT'!M{time_row})")
+                            set_cell_dom(tree2, f'EE{swct_row}', f'{cum_time:.2f}', is_str=False)
+
+                            pts_ser0.append((chart_idx, cum_time))
+                            pts_ser1.append((chart_idx, 0.0))
+                            step_plot_vals.append(0.0)
 
                 # Clear all unused step rows so they never display 0.00
                 for u_row in range(5 + len(steps), 34):
