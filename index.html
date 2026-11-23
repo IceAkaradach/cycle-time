@@ -2094,14 +2094,20 @@
                     <div class="form-group" style="flex: 1;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <label style="color: var(--accent-blue); margin:0;">เวลาเริ่ม (Start Time - sec)</label>
-                            <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleStart')" style="background:#0284c7; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
+                            <div style="display:flex; gap:4px;">
+                                <button type="button" onclick="seekToEditStartTime()" style="background:#0284c7; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="เลื่อนคลิปวิดีโอไปยังเวลานี้">⏮️ ไปที่เวลา</button>
+                                <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleStart')" style="background:#059669; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
+                            </div>
                         </div>
                         <input type="number" id="editCycleStart" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                             <label style="color: var(--accent-blue); margin:0;">เวลาจบ (End Time - sec)</label>
-                            <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleEnd')" style="background:#0284c7; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
+                            <div style="display:flex; gap:4px;">
+                                <button type="button" onclick="seekToEditEndTime()" style="background:#0369a1; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="เลื่อนคลิปวิดีโอไปยังเวลานี้">⏭️ ไปที่เวลา</button>
+                                <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleEnd')" style="background:#059669; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
+                            </div>
                         </div>
                         <input type="number" id="editCycleEnd" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
                     </div>
@@ -2118,10 +2124,15 @@
                 </div>
             </div>
             <div class="modal-footer" style="justify-content: space-between;">
-                <div>
-                    <!-- 2. กดเล่นจุดเริ่ม-จุดจบเฉพาะรอบนี้ -->
-                    <button type="button" class="modal-btn" onclick="previewCurrentModalSegment()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white;" title="เล่นวิดีโอเฉพาะช่วงเวลานี้">
-                        ▶️ เล่นช่วงนี้ (จุดเริ่ม-จุดจบ)
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" class="modal-btn" onclick="seekToEditStartTime()" style="background: #0284c7; color: white;" title="เลื่อนคลิปไปยังเวลาเริ่มต้นของรอบนี้">
+                        ⏮️ ไปจุดเริ่ม
+                    </button>
+                    <button type="button" class="modal-btn" onclick="seekToEditEndTime()" style="background: #0369a1; color: white;" title="เลื่อนคลิปไปยังเวลาสิ้นสุดของรอบนี้">
+                        ⏭️ ไปจุดจบ
+                    </button>
+                    <button type="button" class="modal-btn" onclick="previewCurrentModalSegment()" style="background: rgba(2, 132, 199, 0.12); border: 1px solid #0284c7; color: #0284c7;" title="เล่นวิดีโอเฉพาะช่วงเวลานี้">
+                        ▶️ เล่นช่วงนี้
                     </button>
                 </div>
                 <div style="display:flex; gap:10px;">
@@ -3740,8 +3751,26 @@
         }
 
         // ==========================================
-        // 2. PREVIEW SEGMENT (จุดเริ่ม - จุดจบ)
+        // 2. SEEK & PREVIEW SEGMENT (จุดเริ่ม - จุดจบ)
         // ==========================================
+        // เลื่อนวิดีโอไปยังจุดเริ่มต้นของรอบที่กำลังแก้ไข
+        function seekToEditStartTime() {
+            const startVal = parseFloat(document.getElementById('editCycleStart').value) || 0;
+            state.reviewSegment = null; // ยกเลิกลูปหยุดอัตโนมัติหากมี
+            timeVideo.pause();
+            timeVideo.currentTime = Math.max(0, Math.min(timeVideo.duration || 0, startVal));
+            updateProgressHUD();
+        }
+
+        // เลื่อนวิดีโอไปยังจุดสิ้นสุดของรอบที่กำลังแก้ไข
+        function seekToEditEndTime() {
+            const endVal = parseFloat(document.getElementById('editCycleEnd').value) || 0;
+            state.reviewSegment = null; // ยกเลิกลูปหยุดอัตโนมัติหากมี
+            timeVideo.pause();
+            timeVideo.currentTime = Math.max(0, Math.min(timeVideo.duration || 0, endVal));
+            updateProgressHUD();
+        }
+
         function previewCurrentModalSegment() {
             const startVal = parseFloat(document.getElementById('editCycleStart').value) || 0;
             const endVal = parseFloat(document.getElementById('editCycleEnd').value) || 0;
