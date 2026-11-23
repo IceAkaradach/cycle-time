@@ -1291,6 +1291,8 @@
             position: sticky;
             top: 0;
             z-index: 900;
+            display: flex;
+            align-items: center;
             justify-content: flex-start;
             height: 64px;
             margin: 0 -20px 20px;
@@ -1298,22 +1300,181 @@
             border-bottom: 1px solid #dce4ef;
             background: rgba(255, 255, 255, 0.96);
             color: #111827;
-            font-size: 22px;
+            font-size: 20px;
             text-align: left;
             text-shadow: none;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
             backdrop-filter: blur(14px);
+            gap: 12px;
         }
 
         h1::after {
-            content: "Video Study  •  Professional Workspace";
-            margin-left: 14px;
-            padding-left: 14px;
-            border-left: 1px solid #d9e1ec;
+            display: none !important;
+        }
+
+        .header-brand-title {
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            letter-spacing: -0.2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-tagline {
             color: #64748b;
             font-size: 13px;
             font-weight: 500;
             letter-spacing: 0;
+            padding-left: 14px;
+            border-left: 1px solid #d9e1ec;
+            white-space: nowrap;
+        }
+
+        .header-video-badge {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 9999px;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 400px;
+            box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .header-video-badge:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .header-video-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .header-video-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Modern Export Success Modal */
+        .modern-success-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 440px;
+            padding: 32px 28px 24px;
+            box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            animation: modern-modal-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        @keyframes modern-modal-pop {
+            0% { transform: scale(0.92) translateY(10px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .success-icon-badge {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+        }
+
+        .success-modal-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 6px 0;
+            letter-spacing: -0.3px;
+        }
+
+        .success-modal-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0 0 18px 0;
+            line-height: 1.5;
+        }
+
+        .success-file-box {
+            width: 100%;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 22px;
+            box-sizing: border-box;
+        }
+
+        .success-file-box .file-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .success-file-box .file-name-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+        }
+
+        .success-modal-actions {
+            width: 100%;
+        }
+
+        .btn-success-close {
+            width: 100%;
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-success-close:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-success-close:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .header-tagline { display: none; }
+            .header-video-badge { max-width: 180px; font-size: 11px; padding: 4px 8px; }
         }
 
         .setup-screen {
@@ -1541,7 +1702,14 @@
 <body>
 
     <div class="container" id="mainContainer">
-        <h1>⏱️ Cycle Time Studio</h1>
+        <h1 id="appHeaderTitle">
+            <span class="header-brand-title">⏱️ Cycle Time Studio</span>
+            <span class="header-tagline">Video Study • Professional Workspace</span>
+            <span id="headerVideoTag" class="header-video-badge" style="display: none;">
+                <span class="header-video-icon">🎬</span>
+                <span id="headerVideoNameText" class="header-video-name">-</span>
+            </span>
+        </h1>
 
         <!-- ========================================== -->
         <!-- PHASE 1: SETUP SCREEN                      -->
@@ -1615,13 +1783,13 @@
             <div class="instruction-card">
                 <h3>💡 คู่มือวิธีคุมคีย์บอร์ดตอนวิดีโอเปิด:</h3>
                 <ul>
-                    <li>⌨️ <strong>Spacebar</strong> : เริ่มต้นจับเวลา / สิ้นสุดรอบและบันทึกผล</li>
-                    <li>⌨️ <strong>แป้นตัว P</strong> : หยุดเล่นวิดีโอชั่วคราว / เล่นวิดีโอต่อ</li>
+                    <li>⌨️ <strong>Spacebar</strong> : เริ่มต้นจับเวลา / บันทึกผลรอบปัจจุบัน และสลับขั้นตอนถัดไปให้อัตโนมัติ (ในโหมด Auto Sequence)</li>
+                    <li>⌨️ <strong>แป้นตัว P</strong> : เล่นหรือหยุดวิดีโอชั่วคราว (Play / Pause)</li>
                     <li>⌨️ <strong>แป้นตัว R</strong> : ย้อนกลับไปจุดเริ่มต้นวิดีโอ (00:00)</li>
-                    <li>⌨️ <strong>แป้นตัว Q</strong> : กดสิ้นสุดการทำวิดีโอและเข้าสู่หน้าดาวน์โหลดไฟล์ Excel</li>
-                    <li>⚡ <strong>แป้น [ หรือ -</strong> : ลดความเร็ววิดีโอ | <strong>แป้น ] หรือ +</strong> : เพิ่มความเร็ววิดีโอ (ปรับได้ถึง 5.0x)</li>
-                    <li>⏩ <strong>ลูกศร ซ้าย / ขวา (← / →)</strong> : ก้าวทีละเฟรม (0.05s) | <strong>Shift + (← / →)</strong> : ก้าวทีละ 1 วินาที</li>
-                    <li>🎯 <strong>โหมดรอบแม่แบบ (Template Master)</strong> : บันทึกขั้นตอนรอบแรกด้วยมือ จากนั้นกดล็อคแม่แบบเพื่อให้ระบบจับเวลาและเปลี่ยนขั้นตอนรอบต่อไปอัตโนมัติ</li>
+                    <li>⌨️ <strong>แป้นตัว Q</strong> : สิ้นสุดการจับเวลา และบันทึกส่งออกเป็นไฟล์ Excel (แม่แบบ 4 ชีท)</li>
+                    <li>⚡ <strong>แป้น [ หรือ -</strong> : ลดความเร็ววิดีโอ | <strong>แป้น ] หรือ +</strong> : เพิ่มความเร็ววิดีโอ (สปีด 0.25x – 5.0x)</li>
+                    <li>⏩ <strong>ลูกศร ซ้าย / ขวา (← / →)</strong> : ก้าวทีละเฟรม (0.05s) | <strong>Shift + (← / →)</strong> : ข้ามทีละ 1 วินาที</li>
+                    <li>🔄 <strong>โหมดวนลูปขั้นตอนอัตโนมัติ (Auto Sequence)</strong> : กำหนดขั้นตอนไว้ล่วงหน้า (สามารถลากสลับลำดับขั้นตอนได้) เมื่อเคาะ Spacebar ระบบจะบันทึกเวลาและวนสลับขั้นตอนถัดไปให้อัตโนมัติ</li>
                 </ul>
             </div>
 
@@ -1803,6 +1971,31 @@
                 <div class="cycle-matrix-container" id="cycleMatrixContainer" style="display: none; flex-grow: 1; overflow: auto; padding-right: 4px;">
                     <!-- Dynamic matrix table populates here -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODERN EXPORT SUCCESS MODAL                -->
+    <!-- ========================================== -->
+    <div class="modal-overlay" id="exportSuccessModal" style="display: none; z-index: 2000;" onclick="if(event.target===this) closeExportSuccessModal()">
+        <div class="modern-success-card">
+            <div class="success-icon-badge">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            <h3 class="success-modal-title">ส่งออกไฟล์ Excel สำเร็จเรียบร้อย</h3>
+            <p class="success-modal-subtitle">บันทึกข้อมูลและดาวน์โหลดไฟล์ลงเครื่องเรียบร้อยแล้ว</p>
+            <div class="success-file-box">
+                <span class="file-icon">📊</span>
+                <span id="exportSuccessFileName" class="file-name-text">Time_Measurement_Sheet.xlsx</span>
+            </div>
+            <div class="success-modal-actions">
+                <button type="button" class="btn-success-close" id="btnExportSuccessOk" onclick="closeExportSuccessModal()">
+                    ตกลง
+                </button>
             </div>
         </div>
     </div>
@@ -2491,6 +2684,8 @@
                 rawUrl: rawUrl,
                 streamUrl: convertedUrl
             };
+            updateHeaderVideoName(finalVideoName);
+            updateHeaderVideoName(finalVideoName);
 
             if (!titleInput.value) {
                 titleInput.value = finalVideoName.replace(/\.[^/.]+$/, "");
@@ -2631,6 +2826,7 @@
                 rawUrl: rawUrl,
                 streamUrl: convertedUrl
             };
+            updateHeaderVideoName(finalVideoName);
 
             let isDone = false;
             const cleanup = () => {
@@ -2673,6 +2869,22 @@
             timeVideo.load();
         }
 
+        // Update top header video badge
+        function updateHeaderVideoName(name) {
+            const tag = document.getElementById('headerVideoTag');
+            const text = document.getElementById('headerVideoNameText');
+            if (!tag || !text) return;
+            const cleanName = (name || '').trim();
+            if (cleanName) {
+                text.textContent = cleanName;
+                text.title = cleanName;
+                tag.title = `วิดีโอปัจจุบัน: ${cleanName}`;
+                tag.style.display = 'inline-flex';
+            } else {
+                tag.style.display = 'none';
+            }
+        }
+
         // Handles Video selection and updates setup screen UI
         function handleVideoSelect(input) {
             if (input.files && input.files[0]) {
@@ -2691,6 +2903,9 @@
                 const fileNameText = document.getElementById('fileNameText');
                 fileNameText.textContent = file.name;
                 fileDummy.classList.add('has-file');
+
+                // Update header video badge
+                updateHeaderVideoName(file.name);
 
                 // Clear URL input & feedback
                 const urlInput = document.getElementById('videoUrlInput');
@@ -2804,6 +3019,9 @@
                     size: 0,
                     fromUrl: true
                 };
+            }
+            if (state.videoFile && state.videoFile.name) {
+                updateHeaderVideoName(state.videoFile.name);
             }
 
             employeeName = document.getElementById('employeeInput').value.trim() || "Employee 1";
@@ -4304,7 +4522,7 @@
                         a.click();
                         document.body.removeChild(a);
                         URL.revokeObjectURL(downloadUrl);
-                        alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ 100%!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\n- สเกลแกนเวลากราฟ: 0 ถึง ${maxAxis} วินาที (แบ่งช่องละ ${majorUnit}s)\nรูปแบบตรงตามแม่แบบ Time.xlsx เป๊ะทุกประการ ครบทั้ง 4 ชีท พร้อมกราฟ SWCT และแผนภาพ YAMAZUMI CHART ครับ`);
+                        showModernExportSuccess(filename);
                         templateLoaded = true;
                         return;
                     }
@@ -4771,7 +4989,7 @@
                                 document.body.removeChild(a);
                                 URL.revokeObjectURL(downloadUrl);
 
-                                alert(`✅ บันทึกและส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\nครบทั้ง 4 ชีท:\n1. TIME MEASUREMENT (ฟอร์มสรุปจับเวลา)\n2. SWCT (ตารางงานมาตรฐานผสมพร้อมกราฟ)\n3. Raw Data Log (ประวัติการจับเวลาละเอียดย้อนหลัง)\n4. YAMA (แผนภาพภาระงาน YAMAZUMI CHART พร้อมกราฟแท่งสะสม)`);
+                                showModernExportSuccess(filename);
                                 templateLoaded = true;
                                 return;
                             }
@@ -4914,10 +5132,34 @@
                 XLSX.utils.book_append_sheet(wb, wsYama, "YAMA");
 
                 XLSX.writeFile(wb, filename);
-                alert(`✅ ส่งออกไฟล์ Excel สำเร็จ!\nชื่อไฟล์: ${filename}\n- เกณฑ์เวลาพล็อตกราฟ SWCT: ${plotLabel}\n- CYCLE TIME: ${totalTime.toFixed(2)} วินาที\nครบทั้ง 4 ชีทครับ`);
+                showModernExportSuccess(filename);
             } catch (err) {
                 console.error("Export Excel Error:", err);
                 alert("เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel: " + err.message);
+            }
+        }
+
+        // Modern Export Success Modal Handlers
+        function showModernExportSuccess(filename) {
+            const modal = document.getElementById('exportSuccessModal');
+            const nameEl = document.getElementById('exportSuccessFileName');
+            if (nameEl) {
+                nameEl.textContent = filename || 'Time_Measurement_Sheet.xlsx';
+                nameEl.title = filename || '';
+            }
+            if (modal) {
+                modal.style.display = 'flex';
+                const okBtn = document.getElementById('btnExportSuccessOk');
+                if (okBtn) {
+                    setTimeout(() => okBtn.focus(), 50);
+                }
+            }
+        }
+
+        function closeExportSuccessModal() {
+            const modal = document.getElementById('exportSuccessModal');
+            if (modal) {
+                modal.style.display = 'none';
             }
         }
 
@@ -5254,6 +5496,16 @@
         // KEYBOARD SHORTCUT EVENT HANDLERS
         // ==========================================
         window.addEventListener('keydown', (e) => {
+            // Dismiss Export Success Modal on Escape or Enter
+            const exportSuccessModal = document.getElementById('exportSuccessModal');
+            if (exportSuccessModal && exportSuccessModal.style.display === 'flex') {
+                if (e.key === 'Escape' || e.key === 'Enter') {
+                    e.preventDefault();
+                    closeExportSuccessModal();
+                    return;
+                }
+            }
+
             // Only capture shortcuts when the dashboard is visible and inputs are not focused
             if (document.getElementById('dashboardScreen').style.display === 'grid') {
                 // Ignore keys when typing in inputs/selects
