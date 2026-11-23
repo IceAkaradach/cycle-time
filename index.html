@@ -3286,8 +3286,8 @@
                 opt.textContent = getStepDisplayLabel(step);
                 opt.onclick = (e) => {
                     e.stopPropagation();
-                    changeCycleStepDirectly(cycleNo, step);
                     closeQuickStepPopover();
+                    changeCycleStepDirectly(cycleNo, step);
                 };
                 popover.appendChild(opt);
             });
@@ -3323,11 +3323,32 @@
             if (cycle) {
                 cycle.step = newStep;
                 updateAllCycleRounds();
-                renderCycleList();
                 if (currentSidebarView === 'matrix') {
                     renderCycleMatrix();
+                } else {
+                    updateCycleListLabelsInPlace(cycleNo);
                 }
             }
+        }
+
+        // อัปเดตเฉพาะข้อความบนการ์ดเดิม เพื่อไม่ให้รายการทั้ง sidebar กระพริบ
+        function updateCycleListLabelsInPlace(changedCycleNo) {
+            state.recordedCycles.forEach(cycle => {
+                const card = cycleListContainer.querySelector(`.cycle-item[data-cycle-no="${cycle.no}"]`);
+                if (!card) return;
+
+                const roundBadge = card.querySelector('.cycle-round-badge');
+                if (roundBadge) {
+                    roundBadge.textContent = `รอบที่ ${cycle.cycleRound || 1}`;
+                }
+
+                if (cycle.no === changedCycleNo) {
+                    const stepBadge = card.querySelector('.sidebar-step-badge');
+                    if (stepBadge) {
+                        stepBadge.innerHTML = `🏷️ ${escapeHtml(getStepDisplayLabel(cycle.step))} ▾`;
+                    }
+                }
+            });
         }
 
         // ==========================================
@@ -3701,14 +3722,14 @@
                 
                 const isSelected = selectedCycleNos.has(c.no);
                 const itemHtml = `
-                    <div class="cycle-item" style="${isSelected ? 'border-color: #38bdf8; background: rgba(14, 165, 233, 0.12);' : ''}">
+                    <div class="cycle-item" data-cycle-no="${c.no}" style="${isSelected ? 'border-color: #38bdf8; background: rgba(14, 165, 233, 0.12);' : ''}">
                         <label class="cycle-checkbox-wrap" title="เลือกเพื่อแก้ไขพร้อมกัน">
                             <input type="checkbox" class="cycle-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCycleSelection(${c.no}, this.checked)">
                         </label>
                         <div class="cycle-item-left" style="flex-grow: 1; margin-right: 10px;">
                             <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;">
                                 <span class="cycle-item-no">รายการที่ ${c.no}</span>
-                                <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px;" title="รอบการผลิตใหญ่">
+                                <span class="cycle-round-badge" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px;" title="รอบการผลิตใหญ่">
                                     รอบที่ ${c.cycleRound || 1}
                                 </span>
                                 <button type="button" class="sidebar-step-badge" onclick="openQuickStepPopover(${c.no}, event)" title="คลิกเพื่อเลือกหรือสลับขั้นตอน">
