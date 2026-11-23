@@ -2072,72 +2072,78 @@
     </div>
 
     <div class="modal-overlay" id="editCycleModal">
-        <div class="modal-card">
-            <div class="modal-title">✏️ แก้ไขข้อมูลรอบเวลา</div>
-            <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+        <div class="modal-card" style="max-width: 520px; width: 100%; padding: 24px 28px; box-sizing: border-box;">
+            <div class="modal-title" style="font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;">
+                ✏️ แก้ไขข้อมูลรอบเวลา
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 0;">
                 <input type="hidden" id="editCycleNo">
                 
+                <!-- Row 1: Step & Round -->
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 2;">
-                        <label style="color: var(--accent-blue);">ขั้นตอนการทำงาน (Work Step)</label>
-                        <select id="editCycleStepSelect" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer;">
+                        <label style="color: #1e40af; font-weight: 600; font-size: 13px; margin-bottom: 4px;">ขั้นตอนการทำงาน (Work Step)</label>
+                        <select id="editCycleStepSelect" style="width: 100%; height: 38px; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; border-radius: 8px; padding: 0 12px; font-size: 14px; outline: none; cursor: pointer; box-sizing: border-box;">
                             <!-- Options populated dynamically -->
                         </select>
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label style="color: #34d399;">รอบที่ / ชิ้นที่ (Round)</label>
-                        <input type="number" id="editCycleRound" min="1" max="10" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; font-weight: bold; text-align: center;">
+                        <label style="color: #059669; font-weight: 600; font-size: 13px; margin-bottom: 4px; white-space: nowrap;">รอบที่ (Round)</label>
+                        <input type="number" id="editCycleRound" min="1" max="10" style="width: 100%; height: 38px; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; border-radius: 8px; padding: 0 12px; font-size: 14px; font-weight: 700; text-align: center; outline: none; box-sizing: border-box;">
                     </div>
                 </div>
                 
+                <!-- Row 2: Start Time & End Time -->
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <label style="color: var(--accent-blue); margin:0;">เวลาเริ่ม (Start Time - sec)</label>
-                            <div style="display:flex; gap:4px;">
-                                <button type="button" onclick="seekToEditStartTime()" style="background:#0284c7; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="เลื่อนคลิปวิดีโอไปยังเวลานี้">⏮️ ไปที่เวลา</button>
-                                <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleStart')" style="background:#059669; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
-                            </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                            <label style="color: #1e40af; font-weight: 600; font-size: 13px; margin: 0; white-space: nowrap;">เวลาเริ่ม (Start - sec)</label>
+                            <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleStart')" style="background:#0284c7; border:none; color:white; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;" title="ดึงเวลาจากคลิปขณะนี้มาใส่">📌 ดึงเวลาคลิป</button>
                         </div>
-                        <input type="number" id="editCycleStart" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
+                        <input type="number" id="editCycleStart" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; height: 38px; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 8px; padding: 0 12px; font-size: 15px; font-weight: 600; text-align: center; outline: none; box-sizing: border-box;">
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <label style="color: var(--accent-blue); margin:0;">เวลาจบ (End Time - sec)</label>
-                            <div style="display:flex; gap:4px;">
-                                <button type="button" onclick="seekToEditEndTime()" style="background:#0369a1; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="เลื่อนคลิปวิดีโอไปยังเวลานี้">⏭️ ไปที่เวลา</button>
-                                <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleEnd')" style="background:#059669; border:none; color:white; border-radius:4px; padding:2px 6px; font-size:10.5px; cursor:pointer;" title="ดึงเวลาจากคลิปขณะนี้มาใส่ทันที">📌 ดึงเวลาคลิป</button>
-                            </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                            <label style="color: #1e40af; font-weight: 600; font-size: 13px; margin: 0; white-space: nowrap;">เวลาจบ (End - sec)</label>
+                            <button type="button" onclick="pasteCurrentVideoTimeTo('editCycleEnd')" style="background:#0284c7; border:none; color:white; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;" title="ดึงเวลาจากคลิปขณะนี้มาใส่">📌 ดึงเวลาคลิป</button>
                         </div>
-                        <input type="number" id="editCycleEnd" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
+                        <input type="number" id="editCycleEnd" step="0.01" min="0" oninput="calculateEditDuration()" style="width: 100%; height: 38px; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; border-radius: 8px; padding: 0 12px; font-size: 15px; font-weight: 600; text-align: center; outline: none; box-sizing: border-box;">
                     </div>
                 </div>
                 
+                <!-- Row 3: Duration -->
                 <div class="form-group">
-                    <label style="color: var(--accent-green);">ระยะเวลารอบ (Duration - sec)</label>
-                    <input type="number" id="editCycleDuration" step="0.01" min="0" readonly style="width: 100%; background-color: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); color: var(--accent-green); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; font-weight: bold;">
+                    <label style="color: #059669; font-weight: 600; font-size: 13px; margin-bottom: 4px;">ระยะเวลารอบ (Duration)</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="number" id="editCycleDuration" step="0.01" min="0" readonly style="width: 100%; height: 38px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 8px; padding: 0 45px 0 14px; font-size: 15px; font-weight: 700; outline: none; box-sizing: border-box;">
+                        <span style="position: absolute; right: 14px; font-size: 12.5px; color: #16a34a; font-weight: 600;">วินาที</span>
+                    </div>
                 </div>
                 
+                <!-- Row 4: Note -->
                 <div class="form-group">
-                    <label style="color: var(--accent-blue);">บันทึกเพิ่มเติม (Note)</label>
-                    <input type="text" id="editCycleNote" placeholder="รายละเอียดรอบเวลา..." style="width: 100%; background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-light); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none;">
+                    <label style="color: #1e40af; font-weight: 600; font-size: 13px; margin-bottom: 4px;">บันทึกเพิ่มเติม (Note)</label>
+                    <input type="text" id="editCycleNote" placeholder="รายละเอียดรอบเวลา..." style="width: 100%; height: 38px; background-color: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; border-radius: 8px; padding: 0 12px; font-size: 13.5px; outline: none; box-sizing: border-box;">
                 </div>
             </div>
-            <div class="modal-footer" style="justify-content: space-between;">
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="modal-btn" onclick="seekToEditStartTime()" style="background: #0284c7; color: white;" title="เลื่อนคลิปไปยังเวลาเริ่มต้นของรอบนี้">
+
+            <!-- Footer: 4 balanced buttons in one row -->
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="modal-btn" onclick="seekToEditStartTime()" style="height: 38px; padding: 0 13px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; transition: all 0.15s ease;" title="เลื่อนคลิปไปยังเวลาเริ่มต้นของรอบนี้">
                         ⏮️ ไปจุดเริ่ม
                     </button>
-                    <button type="button" class="modal-btn" onclick="seekToEditEndTime()" style="background: #0369a1; color: white;" title="เลื่อนคลิปไปยังเวลาสิ้นสุดของรอบนี้">
+                    <button type="button" class="modal-btn" onclick="seekToEditEndTime()" style="height: 38px; padding: 0 13px; background: #0369a1; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; transition: all 0.15s ease;" title="เลื่อนคลิปไปยังเวลาสิ้นสุดของรอบนี้">
                         ⏭️ ไปจุดจบ
                     </button>
-                    <button type="button" class="modal-btn" onclick="previewCurrentModalSegment()" style="background: rgba(2, 132, 199, 0.12); border: 1px solid #0284c7; color: #0284c7;" title="เล่นวิดีโอเฉพาะช่วงเวลานี้">
-                        ▶️ เล่นช่วงนี้
-                    </button>
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <button class="modal-btn modal-btn-cancel" onclick="closeEditCycleModal()">ยกเลิก</button>
-                    <button class="modal-btn" style="background-color: var(--accent-green); color: white;" onclick="saveCycleEdit()">บันทึกการแก้ไข</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="modal-btn modal-btn-cancel" onclick="closeEditCycleModal()" style="height: 38px; padding: 0 16px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.15s ease;">
+                        ยกเลิก
+                    </button>
+                    <button type="button" class="modal-btn" onclick="saveCycleEdit()" style="height: 38px; padding: 0 18px; background: #10b981; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
+                        บันทึกการแก้ไข
+                    </button>
                 </div>
             </div>
         </div>
